@@ -1,0 +1,315 @@
+const colors = require("tailwindcss/colors");
+const defaultTheme = require("tailwindcss/defaultTheme")
+
+module.exports = {
+  purge: ["./src/**/*.{js,jsx,ts,tsx}", "./public/index.html"],
+  darkMode: false, // or 'media' or 'class'
+  checkbox: {
+    backgroundColor: '#CC6828',
+  },
+  theme: {
+
+    minHeight: {
+      '44': '44px',
+      '46': '46px',
+      '48': '48px',
+      '56': '56px',
+      '70':'70px',
+      '116':'116px',
+
+      '64': '64px',
+      '88': '88px',
+      '400':'400px',
+      '1200': '1210px',
+      '1400': '1350px',
+    },
+    minWidth: {
+      '44': '44px',
+      '48': '48px',
+      '56': '56px',
+      '70':'70px',
+      '116':'116px',
+
+      '150': '150px',
+      '168': '168px',
+      '225': '225px'
+
+    },
+    maxHeight: {
+      '200': '200px',
+      '434': '434px',
+      '500': '500px',
+      '523': '523px',
+      '925': '925px',
+      '1900': '1900px',
+      '1800': '1800px',
+      '1820': '1820px',
+      '3500': '3500px',
+    },
+    textColor: {
+      primary: '#CC6828',
+      darkest: '#434343',
+      darkGrey: '#8E8E8E',
+      darkGrey2: '#b4b4b4',
+      greenGradient: '#247763',
+      black: colors.black,
+      linear: '#F36F56',
+      white: '#FFFFFF',
+      yellowish:"#F99746",
+
+
+    },
+    fontSize: {
+      '170': '170px',
+      '80': '80px',
+      '72': '72px',
+      '42': '42px',
+      '36': '36px',
+      '32':"32px",
+      'large-medium': '32px',
+      'large-small': '29px',
+      '28': '28px',
+      'h1': '64px',
+      'h2': '47px',
+      'h3': '26px',
+      'h4': '24px',
+      "h5": '20px',
+      'body-large': '18px',
+      'label1-bold': '18px',
+      '17': '17px',
+      '16': '16px',
+      '15': '15px',
+      '14': '14px',
+      '20':"20px",
+      '24':'24px',
+      '26':'26px',
+
+      'body-small': '14px',
+      '13': '13px',
+      'small-text': '12px',
+      '11': '11px','13':"13px"
+    },
+    fontWeight: {
+      'bold': 700,
+      '500': 500,
+      'normal': 400
+    },
+    container: {
+      center: true,
+      padding: {
+        DEFAULT: `1rem`,
+        sm: `1rem`,
+        lg: `2rem`,
+        xl: `2rem`,
+      },
+
+    },
+    divide: {
+      gray: '#C4C4C4',
+      darkest: "#434343",
+      my: '#BE1E1E',
+      blue: colors.sky,
+      red: colors.rose,
+      transparent: "transparent",
+      pink: colors.fuchsia,
+      white: colors.white,
+      black: colors.black,
+      primary: "#CC6828",
+      disabled: '#FFC39D',
+      offWhite: "#FFFAF3",
+      borderGreen: '#247763',
+      customLinear: '#F36F56',
+      purple: '#87326B',
+      offGreen: '#267864',
+      lightGray: "#EEEEEE",
+      ligthBorderGrey: "#D8D8D8",
+    },
+
+    screens: {
+      'xs': '320px',
+      "sm": '375px',
+      "sm-md":"600px",
+      "custom-sm":"500px",
+      "custom-md":"720px",
+      "md": '768px',
+      'custom-lg': '1181px',
+      "lg": '1024px',
+      "1200":"1200px",
+      "custom2": '1440px',
+      "custom": '1500px',
+      'mac': '1800px',
+      "lg-xl":"1390",
+      "xl": '1920px',
+      "2xl": "2560px",
+      "3xl": "2800px"
+    },
+    colors: {
+      yellowish:"#F99746",
+      gray: '#C4C4C4',
+      darkest: "#434343",
+      my: '#BE1E1E',
+      blue: colors.sky,
+      navyBlue: '#172554',
+      red: colors.rose,
+      transparent: "transparent",
+      pink: colors.fuchsia,
+      white: colors.white,
+      black: colors.black,
+      primary: "#CC6828",
+      lightPrimary: "#FFA464",
+      disabled: '#FFC39D',
+      offWhite: "#FFFAF3",
+      backgroundPrimary: "#f6f1ef",
+      borderGreen: '#247763',
+      customLinear: '#F36F56',
+      purple: '#87326B',
+      offGreen: '#267864',
+      lightGray: "#EEEEEE",
+      ligthBorderGrey: "#D8D8D8",
+      green: {
+        0: "#216857",
+        100: "#247763",
+        500: "#347968",
+      },
+      main: "#FFFAF3",
+      linear: {
+        0: "#FFC444",
+        100: "#F36F56",
+      },
+    },
+    fontFamily: {
+      ubuntu: ["Ubuntu", "sans-serif"],
+      indieFlower: ["Indie Flower", "sans-serif"],
+    },
+    extend: {
+      backgroundColor: ['checked'],
+      backgroundImage: {
+        'subscription-bottom': "url('./assets/images/subscription-bottom-background.png')",
+        'subscription-upper': "url('./assets/images/subscription-upper-background.png')",
+        'creator-upper': "url('./assets/images/creator-upper.png')",
+        'creator-group': "url('./assets/images/creator-group.png')",
+        'subscription-upper-mobile': "url('./assets/images/bg-upper-mobile.png')",
+        'back-upper': "url('./assets/images/main-back.png')",
+        'material-bg': "url('./assets/images/main-page-materials/background.svg')",
+        'slider-card': "url('./assets/images/slider-card-bg.svg')",
+        'main-back': "url('./assets/images/main-back.png')",
+        'main-page-back': "url('./assets/images/main-page-back.png')",
+        'main-page-back2': "url('./assets/images/main-page-back2.png')",
+        'video-back': "url('./assets/images/video-back.png')",
+        'head-back': "url('./assets/images/head-back.png')",
+        'primary-bottom-bg': "url('./assets/images/primary-bottom-bg.png')",
+        'main-admin-back': "url('./assets/images/main-admin-back.png')",
+        'study-module-back': "url('./assets/images/back.png')",
+        'notes-bottom': "url('./assets/images/notes-bottom.png')",
+        'basket-bg': "url('./assets/images/basket-bg.png')",
+      },
+      backgroundSize: {
+        '100%': '100%'
+      },
+      gap: {
+        '30': '30px',
+      },
+      lineHeight: {
+        'extra-loose': '2.8',
+        '12': '3rem',
+      },
+      padding: {
+        220: '220px',
+        150: '150px'
+
+      },
+      margin: {
+        8: '8px',
+        16: '16px',
+        30: '30px',
+        50: '50px',
+        60: '60px',
+        70: '70px',
+        550: '550px',
+        600: '600px'
+      },
+      width: {
+        '11rem':'11rem',
+        '16': '16px',
+        '18':'18px',
+        '20': '20px',
+        '24': '24px',
+        '25': '6.5rem',
+        '28': '28px',
+        '46': '46px',
+        '51': '51px',
+        '11rem': '11rem',
+
+        '62':'62%',
+        '70': '70px',
+        '94': '94px',
+        '100': '100px',
+        '116': '116px',
+        "150":"150px",
+        '157': '157px',
+        '250': '250px',
+        '273': '273px',
+        '300': '300px',
+        '320': '320px',
+        '340': '340px',
+        '345': '345px',
+        '393': '393px',
+        '450': '450px',
+        '472': '472px',
+        '550': '550px',
+        '650': '650px',
+        '680': '680px',
+        '700': '700px',
+        '725': '725px',
+        '55': '55%',
+        '90%':"90%",
+        '80%':"80%",
+        '60%':"60%",
+        '65%':"65%",
+        '75%':"75%",
+        '35%':"35%",
+        "47%":"49%"
+      },
+      maxHeight:{
+        'custom':'290px'
+      },
+      height: {
+        '11rem':'11rem',
+
+        '26': '26px',
+        '46': '46px',
+        '11rem': '11rem',
+
+        '51': '51px',
+        "150":"150px",
+        '116': '116px',
+        "100":"100px",
+        '120': '120px',
+
+        "200":'200px',
+        '243': '243px',
+        '250': '250px',
+        '256': '256px',
+        '420': '420px',
+        '400': '400px',
+        '510': '510px',
+        '535': '535px',
+        '565': '565px',
+        '628': '628px',
+        '776': '776px',
+        '800': '800px',
+        '918': '918px',
+        '930': '930px',
+        '1080': '1080px',
+        '1150': '1150px'
+
+
+      }
+    },
+  },
+  variants: {
+    extend: {
+
+    },
+  },
+};
