@@ -31,8 +31,6 @@ const LessonDetail = () => {
     const params = useParams();
     const videoRef = useRef(null);
 
-    const fetchedLessonsRef = useRef(new Set());
-
     useEffect(() => {
         setLoading(true)
         getLectures(params.moduleId).then((res) => {
@@ -79,23 +77,24 @@ const LessonDetail = () => {
     }, [params.moduleId, params.lessonId]);
 
     const fetchVideoProgress = async (lessonId) => {
-        // if (!fetchedLessonsRef.current.has(lessonId)) {
-        //     fetchedLessonsRef.current.add(lessonId);
+        try {
+            const response = await getVideoProgress(lessonId);
+            const isCompleted = response?.data?.completed || false;
+            setVideoProgress((prev) => ({
+                ...prev,
+                completed: isCompleted,
+                watched_seconds: response?.data?.watched_seconds || 0
+            }));
 
-        //     const response = await getVideoProgress(lessonId);
-        //     const isCompleted = response?.data?.completed || false;
-        //     setVideoProgress((prev) => ({
-        //         ...prev,
-        //         [lessonId]: { completed: isCompleted },
-        //     }));
+            if (isCompleted && !completedVideos.includes(lessonId)) {
+                setCompletedVideos((prev) => [...prev, lessonId]);
+            }
 
-        //     if (isCompleted && !completedVideos.includes(lessonId)) {
-        //         setCompletedVideos((prev) => [...prev, lessonId]);
-        //     }
-
-        //     return { completed: isCompleted };
-        // }
-        // setLoading(false)
+            return { completed: isCompleted };
+        } catch (error) {
+            console.error('Error fetching video progress:', error);
+            return { completed: false };
+        }
     };
 
 
@@ -142,7 +141,19 @@ const LessonDetail = () => {
         if (!videoProgress.completed) {
             await pauseVideo(selectedLesson.id, true, e.target.currentTime);
             setVideoEnded(true);
-            setCompletedVideos(prev => [...prev, selectedLesson.id]);
+            // Update videoProgress to mark as completed
+            setVideoProgress(prev => ({
+                ...prev,
+                completed: true,
+                watched_seconds: e.target.currentTime
+            }));
+            // Add to completedVideos if not already included
+            setCompletedVideos(prev => {
+                if (!prev.includes(selectedLesson.id)) {
+                    return [...prev, selectedLesson.id];
+                }
+                return prev;
+            });
 
             const currentIndex = lectures.findIndex(lesson => lesson.id === selectedLesson.id);
             if (currentIndex !== -1 && currentIndex < lectures.length - 1) {
@@ -270,160 +281,202 @@ const LessonDetail = () => {
     // let url = selectedLesson?.video_file ? `${selectedLesson?.video_file}#t=${videoStartTime}` : ''
     // const isAllLessonsCompleted = lectures.length < completedVideos.length;
     return (
-        <div className="bg-gray-100 h-full flex flex-col">
-            <div className="flex">
+        <div className="bg-gray-50 min-h-screen flex flex-col">
+            <div className="flex flex-col lg:flex-row flex-1">
                 {/* Desktop View: Lesson List on the Left */}
-                <div className=" md:block bg-white p-4 flex">
-                    <div
-                        onClick={() => navigate(`/course/${value?.course?.id}`)}
-                        className="cursor-pointer flex items-center space-x-2 mb-4   "
-                    >
-                        <FaArrowLeft />
-                        <span>Back to Tier Selection</span>
-                    </div>
-                    <h3 className="text-sm font-semibold px-3 py-1 w-[110px] text-white rounded">
-                        MODULE {parseInt(moduleIndex) + 1}
-                    </h3>
+                <div className="hidden lg:flex lg:flex-col lg:w-1/3 xl:w-1/4 bg-white shadow-sm">
+                    <div className="sticky top-0 overflow-y-auto max-h-screen">
+                        <div className="p-4 sm:p-6 lg:p-6 xl:p-8">
+                            <div
+                                onClick={() => navigate(`/course/${value?.course?.id}`)}
+                                className="cursor-pointer flex items-center space-x-2 mb-6 group hover:text-blue-600 transition-colors"
+                            >
+                                <FaArrowLeft className="text-sm group-hover:-translate-x-1 transition-transform" />
+                                <span className="text-sm font-medium text-gray-700 group-hover:text-blue-600">Back to Tier Selection</span>
+                            </div>
+                            
+                            <div className="mb-4">
+                                <h3 className="text-xs font-bold px-3 py-1.5 w-fit text-white rounded-md bg-gradient-to-r from-blue-600 to-blue-700 shadow-sm">
+                                    MODULE {parseInt(moduleIndex) + 1}
+                                </h3>
+                            </div>
 
-                    <h2 className="text-20 font-bold mt-2">{initials.title}</h2>
-                    <ul className="mt-4 space-y-2">
-                        {lectures.map((lesson, index) => {
-                            const isCompleted = completedVideos.includes(lesson.id);
-                            const isUnlocked = index === 0 || completedVideos.includes(lectures[index - 1].id);
-                            return (
-                                <div className="flex items-center space-x-3">
-                                    {isCompleted ? (
-                                        <FaCheckCircle className="text-[#6ace6a]" style={{ height: '15px', width: '15px', flexShrink: 0 }} />
-                                    ) : (
-                                        <span
-                                            className={`border rounded-full flex items-center justify-center transition-all ${selectedLesson?.id === lesson.id ? "border-blue-500 bg-blue-500" : "border-gray-500 bg-white"
-                                                }`}
-                                            style={{
-                                                width: '15px',
-                                                height: '15px',
-                                                flexShrink: 0,
-                                            }}
-                                        >
-                                            {selectedLesson?.id === lesson.id && (
-                                                <span
-                                                    className="w-2 h-2 bg-white rounded-full"
-                                                    style={{ marginLeft: '0px', marginBottom: '0.1px' }}
-                                                />
-                                            )}
-                                        </span>
-                                    )}
+                            <h2 className="text-lg sm:text-xl font-bold mt-3 mb-6 text-gray-900 leading-tight">{initials.title}</h2>
+                            
+                            <ul className="space-y-1.5">
+                                {lectures.map((lesson, index) => {
+                                    const isCompleted = completedVideos.includes(lesson.id);
+                                    const isUnlocked = index === 0 || completedVideos.includes(lectures[index - 1].id);
+                                    return (
+                                        <div key={lesson.id} className="flex items-start space-x-2.5">
+                                            <div className="pt-3.5 flex-shrink-0">
+                                                {isCompleted ? (
+                                                    <FaCheckCircle className="text-[#6ace6a]" style={{ height: '18px', width: '18px' }} />
+                                                ) : (
+                                                    <span
+                                                        className={`border-2 rounded-full flex items-center justify-center transition-all ${selectedLesson?.id === lesson.id ? "border-blue-500 bg-blue-500" : "border-gray-400 bg-white"
+                                                            }`}
+                                                        style={{
+                                                            width: '18px',
+                                                            height: '18px',
+                                                        }}
+                                                    >
+                                                        {selectedLesson?.id === lesson.id && (
+                                                            <span
+                                                                className="w-2 h-2 bg-white rounded-full"
+                                                            />
+                                                        )}
+                                                    </span>
+                                                )}
+                                            </div>
 
-                                    <li
-                                        key={lesson.id}
-                                        className={`flex items-center space-x-3 p-3 rounded-md cursor-pointer ${selectedLesson?.id === lesson.id ? "bg-blue-100" : "hover:bg-gray-200"
-                                            }`}
-                                        onClick={() => handleLessonClick(lesson, index)}
-                                    >
-                                        <div className="flex items-center space-x-3 w-full">
-                                            <p
-                                                className={`text-sm ${selectedLesson?.id === lesson.id ? "font-bold text-blue-600" : "text-gray-700"
-                                                    }`}
-                                                style={{
-                                                    whiteSpace: 'normal',
-                                                    wordBreak: 'break-word',
-                                                    margin: 0,
-                                                    maxWidth: 'calc(100% - 20px)',
-                                                }}
+                                            <li
+                                                className={`flex-1 flex items-center p-3 rounded-lg cursor-pointer transition-all ${
+                                                    selectedLesson?.id === lesson.id 
+                                                        ? "bg-blue-50 border-l-4 border-blue-500 shadow-sm" 
+                                                        : "hover:bg-gray-50 border-l-4 border-transparent"
+                                                } ${!isUnlocked ? "opacity-50 cursor-not-allowed" : ""}`}
+                                                onClick={() => isUnlocked && handleLessonClick(lesson, index)}
                                             >
-                                                {lesson.title}
-                                            </p>
+                                                <p
+                                                    className={`text-sm leading-relaxed ${
+                                                        selectedLesson?.id === lesson.id 
+                                                            ? "font-semibold text-blue-700" 
+                                                            : "text-gray-700"
+                                                    }`}
+                                                    style={{
+                                                        wordBreak: 'break-word',
+                                                    }}
+                                                >
+                                                    {lesson.title}
+                                                </p>
+                                            </li>
                                         </div>
-                                    </li>
-                                </div>
-
-
-                            );
-                        })}
-                    </ul>
+                                    );
+                                })}
+                            </ul>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Main Content Area */}
-                <div className="w-full md:w-2/3 bg-[#f5f9ff] p-8">
-                    <h2 className="text-24 font-bold">{selectedLesson?.title}</h2>
-                    <div className="mt-4 bg-black rounded-lg relative overflow-hidden">
-                        {allCompleted && !value?.quizPassed ? (
+                <div className="flex-1 w-full lg:w-2/3 xl:w-3/4 bg-[#f5f9ff]">
+                    <div className="p-4 sm:p-6 lg:p-8">
+                        {/* Mobile Header */}
+                        <div className="lg:hidden mb-6">
                             <div
-                                className="flex items-center justify-center w-full h-72 bg-[#f5f9ff] rounded-lg flex-col">
-                                <CompletionCard moduleCount={parseInt(moduleIndex) + 1} videoProgress={videoProgress} />
-                            </div>
-                        ) : videoEnded && !value?.quizPassed ? (
-                            <div
-                                className="flex items-center justify-center w-full h-72 bg-[#f5f9ff] rounded-lg flex-col">
-                                {nextLesson ? (
-                                    <NextLessonCard handleLessonClick={() => handleLessonClick(nextLesson)}
-                                        setVideoEnded={setVideoEnded} />
-                                ) : (
-                                    <CompletionCard moduleCount={parseInt(moduleIndex) + 1} videoProgress={videoProgress} />
-                                )}
-                            </div>
-                        ) : (
-                            <video
-                                ref={videoRef}
-                                className="w-full h-auto rounded-lg"
-                                controls
-                                onContextMenu={(e) => e.preventDefault()}
-                                preload={"auto"}
-                                onTimeUpdate={handleTimeUpdate}
-                                onSeeking={(e) => handleSeeking(e)}
-                                disablePictureInPicture
-                                controlsList="nodownload noplaybackrate nodetails"
-                                onEnded={(e) => {
-                                    handleCompleteVideo(e)
-                                }} // ✅ Triggers video completion
-                                onPause={(e) => handlePause(e.target.currentTime)}
+                                onClick={() => navigate(`/course/${value?.course?.id}`)}
+                                className="cursor-pointer flex items-center space-x-2 mb-4 group"
                             >
-                                {selectedLesson?.video_file ? (
-                                    <source src={selectedLesson?.video_file} type="video/mp4" />
-                                ) : (
-                                    <p className="text-white text-center">No video available</p>
-                                )}
-                                Your browser does not support the video tag.
-                            </video>
-                        )}
-                    </div>
+                                <FaArrowLeft className="text-sm group-hover:-translate-x-1 transition-transform" />
+                                <span className="text-sm font-medium text-gray-700">Back to Tier Selection</span>
+                            </div>
+                            <div className="mb-3">
+                                <h3 className="text-xs font-bold px-3 py-1.5 w-fit text-white rounded-md bg-gradient-to-r from-blue-600 to-blue-700 shadow-sm">
+                                    MODULE {parseInt(moduleIndex) + 1}
+                                </h3>
+                            </div>
+                            <h2 className="text-base font-semibold text-gray-600 mb-2">{initials.title}</h2>
+                        </div>
 
-                    {/* Lesson list below the video on mobile */}
-                    <h3 className="text-sm font-semibold w-[100px] mt-10 p-1 text-white  md:hidden">
-                        MODULE {parseInt(moduleIndex) + 1}
-                    </h3>
-                    <ul className="mt-4 space-y-2 md:hidden">
-                        {lectures.map((lesson, index) => {
-                            const isCompleted = completedVideos.includes(lesson.id);
-                            const isUnlocked = index === 0 || completedVideos.includes(lectures[index - 1].id);
-                            return (
-                                <li
-                                    key={lesson.id}
-                                    className={`flex items-center space-x-3 p-3 rounded-md cursor-pointer ${selectedLesson?.id === lesson.id ? "bg-blue-100" : "hover:bg-gray-200"
-                                        }`}
-                                    onClick={() => isUnlocked && handleLessonClick(lesson, index)}
-                                >
-                                    {isCompleted ? (
-                                        <FaCheckCircle className="text-[#6ace6a]" />
+                        <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-6 text-gray-900 leading-tight">
+                            {selectedLesson?.title}
+                        </h2>
+                        
+                        <div className="mt-4 bg-black rounded-xl relative overflow-hidden shadow-2xl">
+                            {allCompleted && !value?.quizPassed ? (
+                                <div className="flex items-center justify-center w-full min-h-[300px] sm:min-h-[400px] lg:min-h-[500px] bg-[#f5f9ff] rounded-xl flex-col p-4">
+                                    <CompletionCard moduleCount={parseInt(moduleIndex) + 1} videoProgress={videoProgress} />
+                                </div>
+                            ) : videoEnded && !value?.quizPassed ? (
+                                <div className="flex items-center justify-center w-full min-h-[300px] sm:min-h-[400px] lg:min-h-[500px] bg-[#f5f9ff] rounded-xl flex-col p-4">
+                                    {nextLesson ? (
+                                        <NextLessonCard handleLessonClick={() => handleLessonClick(nextLesson)}
+                                            setVideoEnded={setVideoEnded} />
                                     ) : (
-                                        <span
-                                            className={`w-4 h-4 border rounded-full flex items-center justify-center transition-all ${selectedLesson?.id === lesson.id ? "border-blue-500 bg-blue-500" : "border-gray-500 bg-white"
-                                                }`}
-                                        >
-                                            {selectedLesson?.id === lesson.id && (
-                                                <span className="w-2 h-2 bg-white rounded-full"></span>
-                                            )}
-                                        </span>
+                                        <CompletionCard moduleCount={parseInt(moduleIndex) + 1} videoProgress={videoProgress} />
                                     )}
-                                    <p
-                                        className={`text-sm ${selectedLesson?.id === lesson.id ? "font-bold text-blue-600" : "text-gray-700"
-                                            }`}
+                                </div>
+                            ) : (
+                                <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+                                    <video
+                                        ref={videoRef}
+                                        className="absolute top-0 left-0 w-full h-full rounded-lg"
+                                        controls
+                                        onContextMenu={(e) => e.preventDefault()}
+                                        preload={"auto"}
+                                        onTimeUpdate={handleTimeUpdate}
+                                        onSeeking={(e) => handleSeeking(e)}
+                                        disablePictureInPicture
+                                        controlsList="nodownload noplaybackrate nodetails"
+                                        onEnded={(e) => {
+                                            handleCompleteVideo(e)
+                                        }}
+                                        onPause={(e) => handlePause(e.target.currentTime)}
                                     >
-                                        {lesson.title}
-                                    </p>
-                                </li>
-                            );
-                        })}
-                    </ul>
+                                        {selectedLesson?.video_file ? (
+                                            <source src={selectedLesson?.video_file} type="video/mp4" />
+                                        ) : (
+                                            <p className="text-white text-center">No video available</p>
+                                        )}
+                                        Your browser does not support the video tag.
+                                    </video>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Lesson list below the video on mobile */}
+                        <div className="lg:hidden mt-8">
+                            <h3 className="text-xs font-bold px-3 py-1.5 w-fit text-white rounded-md bg-gradient-to-r from-blue-600 to-blue-700 shadow-sm mb-4">
+                                MODULE {parseInt(moduleIndex) + 1}
+                            </h3>
+                            <h2 className="text-lg font-bold mb-4 text-gray-900">{initials.title}</h2>
+                            <ul className="space-y-2">
+                                {lectures.map((lesson, index) => {
+                                    const isCompleted = completedVideos.includes(lesson.id);
+                                    const isUnlocked = index === 0 || completedVideos.includes(lectures[index - 1].id);
+                                    return (
+                                        <li
+                                            key={lesson.id}
+                                            className={`flex items-start space-x-3 p-4 rounded-lg cursor-pointer transition-all ${
+                                                selectedLesson?.id === lesson.id 
+                                                    ? "bg-blue-50 border-l-4 border-blue-500 shadow-sm" 
+                                                    : "bg-white hover:bg-gray-50 border-l-4 border-transparent shadow-sm"
+                                            } ${!isUnlocked ? "opacity-50 cursor-not-allowed" : ""}`}
+                                            onClick={() => isUnlocked && handleLessonClick(lesson, index)}
+                                        >
+                                            <div className="pt-0.5 flex-shrink-0">
+                                                {isCompleted ? (
+                                                    <FaCheckCircle className="text-[#6ace6a]" style={{ height: '20px', width: '20px' }} />
+                                                ) : (
+                                                    <span
+                                                        className={`w-5 h-5 border-2 rounded-full flex items-center justify-center transition-all ${
+                                                            selectedLesson?.id === lesson.id 
+                                                                ? "border-blue-500 bg-blue-500" 
+                                                                : "border-gray-400 bg-white"
+                                                        }`}
+                                                    >
+                                                        {selectedLesson?.id === lesson.id && (
+                                                            <span className="w-2.5 h-2.5 bg-white rounded-full"></span>
+                                                        )}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <p
+                                                className={`text-sm leading-relaxed flex-1 ${
+                                                    selectedLesson?.id === lesson.id 
+                                                        ? "font-semibold text-blue-700" 
+                                                        : "text-gray-700"
+                                                }`}
+                                            >
+                                                {lesson.title}
+                                            </p>
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

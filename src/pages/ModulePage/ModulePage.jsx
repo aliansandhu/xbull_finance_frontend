@@ -335,11 +335,16 @@ const ModulePage = () => {
                 <div className="absolute inset-0 bg-black/30 sm:bg-black/20 md:bg-black/10 -z-10"></div>
             </div>
 
-            <div onClick={() => {
-                navigate('/')
-            }} className="cursor-pointer container flex w-full max-w-[1000px] mx-auto pt-10 px-4 items-center space-x-2">
+            <button 
+                onClick={() => {
+                    navigate('/')
+                }} 
+                type="button"
+                className="cursor-pointer container flex w-full max-w-[1000px] mx-auto pt-10 px-4 items-center space-x-2 select-none relative z-10 bg-transparent border-none text-left"
+                style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent', userSelect: 'none' }}
+            >
                 <FaArrowLeft /> <span>Back to Tier Selection</span>
-            </div>
+            </button>
 
 
             {/* ✅ Render Modules */}
@@ -443,8 +448,8 @@ const ModulePage = () => {
                                             className={'mr-2 mt-1 fill-blue-300'} />Module {index + 1} Quiz</p>
                                         <button
                                             onClick={() => handleExamButtonClick(module.id)}
-                                            className={`bg-white px-4 py-1 text-sm rounded-md ${getKey() && (allVideosCompleted || quizPassed) ? 'cursor-pointer' : !getKey() ? 'cursor-pointer' : 'cursor-not-allowed'}`}
-                                            disabled={getKey() && (!allVideosCompleted || quizPassed)}
+                                            className={`bg-white px-4 py-1 text-sm rounded-md ${getKey() && allVideosCompleted && progressPercentage === 100 && !quizPassed ? 'cursor-pointer' : !getKey() ? 'cursor-pointer' : 'cursor-not-allowed'}`}
+                                            disabled={getKey() && (!allVideosCompleted || progressPercentage !== 100 || quizPassed)}
                                         >
                                             TAKE EXAM
                                         </button>
