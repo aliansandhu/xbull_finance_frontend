@@ -130,10 +130,10 @@ const Landing = () => {
                             }}
                             className="courses-swiper"
                         >
-                            {courses?.length > 0 && courses?.map((course, index) => {
-                                const isStartButtonDisabled = index > 0 && courses[index - 1].progress_percentage !== 100;
+                            {/* API Cards - Only first 2 */}
+                            {courses?.length > 0 && courses?.slice(0, 2).map((course, index) => {
                                 return (
-                                    <SwiperSlide key={index}>
+                                    <SwiperSlide key={`api-${index}`}>
                                         <div className="bg-white shadow-lg overflow-hidden flex flex-col rounded-xl  md:h-[720px] lg:h-[650px]">
                                             {/* Card Header with image and tier */}
                                             <div className="relative">
@@ -148,9 +148,6 @@ const Landing = () => {
                                             {/* Card Body with content */}
                                             <div className="flex flex-col p-4 sm:p-5 md:p-6">
                                                 <h3 className="text-center mb-3 sm:mb-4 text-base sm:text-lg md:text-xl font-bold line-clamp-2">{course.title}</h3>
-                                                {/*<p className={`text-sm text-white pl-2 uppercase mt-1 inline-block rounded-xl ${tierHandling(course.level).bgColor} border-opacity-50 border px-3 py-1`}>*/}
-                                                {/*    {tierHandling(course.level).level}*/}
-                                                {/*</p>*/}
                                                 <div className="py-4 pt-0 mt-auto">
                                                     <button
                                                         onClick={() => {
@@ -178,27 +175,41 @@ const Landing = () => {
                                                 </div>
                                                 <p className="mt-4 text-gray-600 text-sm">{course.description}</p>
                                             </div>
-
-                                            {/* Button at the bottom of the card */}
-                                            {/* <div className="p-6 pt-0 mt-auto">
-                                               <button onClick={() => {
-                                                   navigate(`/course/${course.id}`);
-                                                   setValue((prev) => ({
-                                                       ...prev,
-                                                       course: course
-                                                   }));
-                                                   localStorage.setItem('courseID', course.id);
-                                               }}
-                                                       className="bg-gradient-to-r from-[#d99b2c] via-[#ae6b00] to-[#da8100] text-white px-4 py-2 rounded-md w-full">
-                                               START COURSE
-                                               </button>
-                                            </div> */}
                                         </div>
                                     </SwiperSlide>
                                 )
                             })}
 
-                     
+                            {/* Static Tier 3 Card at the end */}
+                            <SwiperSlide key="static-tier3">
+                                <div className="bg-white shadow-lg overflow-hidden flex flex-col rounded-xl md:h-[720px] lg:h-[650px]">
+                                    {/* Card Header with image and tier */}
+                                    <div className="relative">
+                                        <img src={tierHandling('Master').tierImage} alt={''}
+                                             className="w-auto h-auto px-4 sm:px-6 md:px-10"/>
+                                        <div
+                                            className={`${tierHandling('Master').bgColor} absolute top-0 left-0 w-[80px] sm:w-[90px] md:w-[100px] text-white px-3 py-2 sm:px-4 sm:py-2.5 md:px-6 md:py-3 text-sm sm:text-base md:text-lg font-semibold`}>
+                                            Tier 3
+                                        </div>
+                                    </div>
+                                    {/* Card Body with content */}
+                                    <div className="flex flex-col p-4 sm:p-5 md:p-6">
+                                        <h3 className="text-center mb-3 sm:mb-4 text-base sm:text-lg md:text-xl font-bold line-clamp-2">{'DeFi Master'}</h3>
+                                        <div className="py-4 pt-0 mt-auto">
+                                            <button className="bg-gray cursor-not-allowed text-white text-[15px] px-4 py-2 rounded-md w-full">
+                                                Invite Only
+                                            </button>
+                                        </div>
+                                        <div className="flex gap-2 text-gray-600 mt-4 w-full">
+                                        </div>
+                                        <p className="mt-4 text-gray-600 text-sm">Our 3rd Master tier was built to get you a
+                                            complex understanding of ALL the elements inside of Defi & Web3. This tier will
+                                            allow you to call yourself a Master and you will join our Master partners page
+                                            on
+                                            the site.</p>
+                                    </div>
+                                </div>
+                            </SwiperSlide>
                         </Swiper>
                         {/* Custom Navigation Buttons for Courses */}
                         <button 
@@ -250,20 +261,11 @@ const Landing = () => {
                     >
                         {testimonials.map((testimonial, index) => (
                             <SwiperSlide key={index}>
-                                <div className="p-6 bg-white rounded-lg h-[300px] sm:h-[350px] md:h-[400px] flex flex-col transition-all duration-300 ease-in-out hover:shadow-2xl hover:-translate-y-2 hover:scale-[1.02] cursor-pointer group">
-                                    <p className="italic text-left mb-6 text-gray-700 flex-grow leading-relaxed group-hover:text-gray-900 transition-colors duration-300">"{testimonial.text}"</p>
-                                    <div className="flex flex-col items-center mt-auto">
-                                        <div className="h-24 rounded-full mb-3 overflow-hidden flex-shrink-0 group-hover:border-blue-600 transition-colors duration-300">
-                                            <img 
-                                                src={avatar} 
-                                                alt={testimonial.name}
-                                                className="w-full h-full object-cover object-top group-hover:scale-110 transition-transform duration-300"
-                                            />
-                                        </div>
-                                        <p className="font-semibold text-gray-800 text-base group-hover:text-blue-600 transition-colors duration-300">{testimonial.name}</p>
-                                        <p className="text-sm text-gray-600 mt-1 group-hover:text-gray-700 transition-colors duration-300">{testimonial.title}</p>
-                                    </div>
-                                </div>
+                           
+                                <div key={index} className="p-6 bg-white rounded-lg">
+                                <p className="italic">“{testimonial.text}”</p>
+                                <p className="mt-4 font-semibold">{testimonial.name}</p>
+                            </div>
                             </SwiperSlide>
                         ))}
                     </Swiper>
@@ -288,7 +290,7 @@ const Landing = () => {
             {/* FAQ Section */}
             <div className="w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 text-center bg-gradient-to-b from-white to-blue-50">
                 <div className="max-w-6xl mx-auto w-full">
-                    <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-3 sm:mb-4 text-gray-900">
+                    <h2 className="text-2xl sm:text-4xl md:text-4xl lg:text-36  font-bold mb-3 sm:mb-4 text-gray-900">
                         Frequently Asked Questions
                     </h2>
                     <p className="text-gray-600 text-base sm:text-lg mb-8 sm:mb-10 md:mb-12">Find answers to common questions about our courses</p>
