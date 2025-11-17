@@ -12,6 +12,36 @@ import { useAppContext } from "../../helpers/Context/AppContext";
 
 let array = []
 
+// Cache utility functions for completed videos
+const CACHE_KEY = 'completedVideosCache';
+
+const getCompletedVideosFromCache = () => {
+    try {
+        const cached = localStorage.getItem(CACHE_KEY);
+        return cached ? JSON.parse(cached) : [];
+    } catch (error) {
+        console.error('Error reading from cache:', error);
+        return [];
+    }
+};
+
+const saveCompletedVideoToCache = (videoId) => {
+    try {
+        const cached = getCompletedVideosFromCache();
+        if (!cached.includes(videoId)) {
+            cached.push(videoId);
+            localStorage.setItem(CACHE_KEY, JSON.stringify(cached));
+        }
+    } catch (error) {
+        console.error('Error saving to cache:', error);
+    }
+};
+
+const isVideoCompletedInCache = (videoId) => {
+    const cached = getCompletedVideosFromCache();
+    return cached.includes(videoId);
+};
+
 const LessonDetail = () => {
     const [initials, setInitials] = useState({});
     const [lectures, setLectures] = useState([]);
@@ -37,12 +67,23 @@ const LessonDetail = () => {
             setInitials({ title: res.data.module, id: res.data.id });
             setLectures(res.data.videos);
 
-            let completedLessons = [];
+            // Load completed videos from cache first
+            const cachedCompletedVideos = getCompletedVideosFromCache();
+            let completedLessons = [...cachedCompletedVideos];
 
             const checkLessons = res.data.videos.map(async (lesson) => {
-                const progress = await fetchVideoProgress(lesson.id);
-                if (progress?.completed) {
-                    completedLessons.push(lesson.id);
+                // Check cache first
+                if (isVideoCompletedInCache(lesson.id)) {
+                    if (!completedLessons.includes(lesson.id)) {
+                        completedLessons.push(lesson.id);
+                    }
+                } else {
+                    // If not in cache, check API
+                    const progress = await fetchVideoProgress(lesson.id);
+                    if (progress?.completed) {
+                        completedLessons.push(lesson.id);
+                        saveCompletedVideoToCache(lesson.id);
+                    }
                 }
             });
 
@@ -77,6 +118,23 @@ const LessonDetail = () => {
     }, [params.moduleId, params.lessonId]);
 
     const fetchVideoProgress = async (lessonId) => {
+        // Check cache first
+        if (isVideoCompletedInCache(lessonId)) {
+            const isCompleted = true;
+            setVideoProgress((prev) => ({
+                ...prev,
+                completed: isCompleted,
+                watched_seconds: prev.watched_seconds || 0
+            }));
+
+            if (!completedVideos.includes(lessonId)) {
+                setCompletedVideos((prev) => [...prev, lessonId]);
+            }
+
+            return { completed: isCompleted };
+        }
+
+        // If not in cache, try API
         try {
             const response = await getVideoProgress(lessonId);
             const isCompleted = response?.data?.completed || false;
@@ -88,11 +146,25 @@ const LessonDetail = () => {
 
             if (isCompleted && !completedVideos.includes(lessonId)) {
                 setCompletedVideos((prev) => [...prev, lessonId]);
+                saveCompletedVideoToCache(lessonId);
             }
 
             return { completed: isCompleted };
         } catch (error) {
             console.error('Error fetching video progress:', error);
+            // Even if API fails, check cache as fallback
+            const cachedCompleted = isVideoCompletedInCache(lessonId);
+            if (cachedCompleted) {
+                setVideoProgress((prev) => ({
+                    ...prev,
+                    completed: true,
+                    watched_seconds: prev.watched_seconds || 0
+                }));
+                if (!completedVideos.includes(lessonId)) {
+                    setCompletedVideos((prev) => [...prev, lessonId]);
+                }
+                return { completed: true };
+            }
             return { completed: false };
         }
     };
@@ -139,23 +211,36 @@ const LessonDetail = () => {
 
     const handleCompleteVideo = async (e) => {
         if (!videoProgress.completed) {
-            await pauseVideo(selectedLesson.id, true, e.target.currentTime);
+            // Immediately mark as completed and save to cache (don't wait for API)
+            const videoId = selectedLesson.id;
+            const currentTime = e.target.currentTime;
+            
+            // Save to cache immediately
+            saveCompletedVideoToCache(videoId);
+            
+            // Update state immediately to show checkmark
             setVideoEnded(true);
-            // Update videoProgress to mark as completed
             setVideoProgress(prev => ({
                 ...prev,
                 completed: true,
-                watched_seconds: e.target.currentTime
+                watched_seconds: currentTime
             }));
+            
             // Add to completedVideos if not already included
             setCompletedVideos(prev => {
-                if (!prev.includes(selectedLesson.id)) {
-                    return [...prev, selectedLesson.id];
+                if (!prev.includes(videoId)) {
+                    return [...prev, videoId];
                 }
                 return prev;
             });
 
-            const currentIndex = lectures.findIndex(lesson => lesson.id === selectedLesson.id);
+            // Try API call in background (don't wait for it, don't fail if it errors)
+            pauseVideo(videoId, true, currentTime).catch(error => {
+                console.log('API call failed, but video is marked as completed in cache:', error);
+                // Video is already marked as completed in cache, so we continue
+            });
+
+            const currentIndex = lectures.findIndex(lesson => lesson.id === videoId);
             if (currentIndex !== -1 && currentIndex < lectures.length - 1) {
                 setNextLesson(lectures[currentIndex + 1]);
             } else {

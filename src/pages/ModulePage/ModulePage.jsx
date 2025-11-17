@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { FaArrowLeft, FaPen, FaYoutube } from "react-icons/fa";
+import { FaArrowLeft, FaPen, FaYoutube, FaCheckCircle } from "react-icons/fa";
 import { useNavigate, useParams } from "react-router-dom";
 import { getModules } from "../../apis/Module/module";
 import { getModuleProgress } from "../../apis/Module/moduleProgress";
@@ -25,6 +25,23 @@ import icon from "../../assets/images/updatedLogo.png";
 import { setKey } from "../../helpers/setKey";
 import { userLogin } from "../../apis/Authentication/login";
 
+// Cache utility functions for completed videos (same as LessonDetail)
+const CACHE_KEY = 'completedVideosCache';
+
+const getCompletedVideosFromCache = () => {
+    try {
+        const cached = localStorage.getItem(CACHE_KEY);
+        return cached ? JSON.parse(cached) : [];
+    } catch (error) {
+        console.error('Error reading from cache:', error);
+        return [];
+    }
+};
+
+const isVideoCompletedInCache = (videoId) => {
+    const cached = getCompletedVideosFromCache();
+    return cached.includes(videoId);
+};
 
 const PasswordRequirement = ({ isValid, text }) => (
     <div className="flex mt-3">
@@ -353,21 +370,74 @@ const ModulePage = () => {
                 const lessons = module.lessons || [];
                 const previousModuleProgress = moduleProgressMap[modules[index - 1]?.id];
                 const isModuleUnlocked = index === 0 || (previousModuleProgress?.quiz_passed === true);
-                const completedProgress = Number(progress.progress_percentage) || 0;
-                const totalProgress = 100;
-                const progressPercentage = totalProgress > 0 ? (completedProgress / totalProgress) * 100 : 0;
-                const allVideosCompleted = lessons.every((lesson, i) => {
-                    return progress.videos?.[i]?.total_videos === progress.videos?.[i]?.total_watched;
+                
+                // Count unique completed videos (combine API and cache)
+                // Prioritize cache since it's more reliable for user's current state
+                const allCompletedVideoIds = new Set();
+                const apiCompletedVideoIds = new Set();
+                
+                // Get completed video IDs from API
+                if (progress.videos && Array.isArray(progress.videos)) {
+                    progress.videos.forEach((video) => {
+                        if (video.completed && video.video_id) {
+                            apiCompletedVideoIds.add(video.video_id);
+                            allCompletedVideoIds.add(video.video_id);
+                        }
+                    });
+                }
+                
+                // Add completed videos from cache (this is the primary source)
+                lessons.forEach((lesson) => {
+                    const lessonId = lesson[1];
+                    if (isVideoCompletedInCache(lessonId)) {
+                        allCompletedVideoIds.add(lessonId);
+                    }
+                });
+                
+                const totalCompletedVideos = allCompletedVideoIds.size;
+                const totalVideos = lessons.length;
+                const progressPercentage = totalVideos > 0 ? (totalCompletedVideos / totalVideos) * 100 : 0;
+                
+                // Check if all videos are completed (prioritize cache, fallback to API)
+                const allVideosCompleted = lessons.every((lesson) => {
+                    const lessonId = lesson[1];
+                    // Check cache first (most reliable)
+                    const videoCompletedFromCache = isVideoCompletedInCache(lessonId);
+                    // Check API as fallback
+                    const videoCompletedFromAPI = apiCompletedVideoIds.has(lessonId);
+                    return videoCompletedFromCache || videoCompletedFromAPI;
                 });
 
                 const quizPassed = progress.quiz_passed === true;
 
+                // Enable exam if all videos are completed (from cache or API) and count matches
+                // Trust cache more than API since cache reflects user's actual viewing
+                const canTakeExam = totalVideos > 0 && 
+                    totalCompletedVideos === totalVideos && 
+                    allVideosCompleted;
+
+                // Debug logging (can be removed in production)
+                if (module.id) {
+                    console.log(`Module ${module.id} - Exam Button Status:`, {
+                        allVideosCompleted,
+                        totalCompletedVideos,
+                        totalVideos,
+                        progressPercentage: Math.round(progressPercentage),
+                        canTakeExam,
+                        hasKey: !!getKey(),
+                        quizPassed,
+                        apiCompletedVideoIds: Array.from(apiCompletedVideoIds),
+                        cacheCompletedVideos: lessons.filter(l => isVideoCompletedInCache(l[1])).map(l => l[1]),
+                        allLessonIds: lessons.map(l => l[1])
+                    });
+                }
+
                 const handleExamButtonClick = async (moduleID) => {
                     setModuleId(moduleID)
                     if(getKey()){
-                        if (allVideosCompleted && !quizPassed) {
+                        if (canTakeExam && !quizPassed) {
                             navigate(`/exam/${module.id}`);
-                        } else if (allVideosCompleted && quizPassed) {
+                        } else if (canTakeExam && quizPassed) {
                             await toast.success("You have already passed the quiz for this module.");
                         }
                     } else{
@@ -375,16 +445,6 @@ const ModulePage = () => {
                     }
                 };
 
-                let lastUnlockedLessonIndex = -1;
-                lessons.forEach((lesson, i) => {
-                    const isFirstLesson = i === 0;
-                    const previousLessonCompleted = isFirstLesson || progress.videos?.[i - 1]?.completed;
-                    if (previousLessonCompleted) {
-                        lastUnlockedLessonIndex = i;
-                    }
-                });
-
-                const lastUnlockedLesson = lessons[lastUnlockedLessonIndex];
 
                 return (
                     <div key={module.id} className="container w-full max-w-[1000px] mx-auto py-5 md:px-4 px-1 rounded-md">
@@ -412,15 +472,28 @@ const ModulePage = () => {
                             <div className="p-6">
                                 {lessons.map((lesson, i) => {
                                     const isFirstLesson = i === 0;
+                                    const lessonId = lesson[1];
 
-                                    const previousLessonCompleted = isFirstLesson || progress.videos?.[i - 1]?.completed;
+                                    // Check if video is completed from API (by video_id) or cache
+                                    const videoCompletedFromAPI = apiCompletedVideoIds.has(lessonId);
+                                    const videoCompletedFromCache = isVideoCompletedInCache(lessonId);
+                                    const isVideoCompleted = videoCompletedFromAPI || videoCompletedFromCache;
+
+                                    // Check previous lesson completion
+                                    const prevLessonId = lessons[i - 1]?.[1];
+                                    const previousLessonCompleted = isFirstLesson || 
+                                        (prevLessonId && (apiCompletedVideoIds.has(prevLessonId) || isVideoCompletedInCache(prevLessonId)));
                                     const isLessonUnlocked = isFirstLesson ? isModuleUnlocked : previousLessonCompleted;
 
                                     return (
                                         <div key={lesson[1]}
                                             className="flex justify-between items-center border-b py-3">
                                             <p className="text-xs sm:text-sm md:text-base text-gray-700 flex items-center flex-wrap min-w-0 pr-2 gap-1 sm:gap-2">
-                                                <FaYoutube className="flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7" />
+                                                {isVideoCompleted ? (
+                                                    <FaCheckCircle className="flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 text-[#6ace6a]" />
+                                                ) : (
+                                                    <FaYoutube className="flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7" />
+                                                )}
                                                 <span className="break-words flex-1">{lesson[0]}</span>
                                             </p>
                                             <button
@@ -430,12 +503,8 @@ const ModulePage = () => {
                                                     }
                                     `}
                                             >
-                                                {
-                                                    isLessonUnlocked &&
-                                                        (lesson[1] === lastUnlockedLesson[1] && !quizPassed)
-                                                        ? (allVideosCompleted ? 'REVIEW' : 'START')
-                                                        : (allVideosCompleted ? 'REVIEW' : 'START')
-                                                }                                            </button>
+                                                {isVideoCompleted ? 'REVIEW' : 'START'}
+                                            </button>
                                         </div>
                                     );
                                 })}
@@ -446,13 +515,41 @@ const ModulePage = () => {
                                         className="flex justify-between items-center py-3">
                                         <p className="text-sm text-white  flex"><FaPen
                                             className={'mr-2 mt-1 fill-blue-300'} />Module {index + 1} Quiz</p>
-                                        <button
-                                            onClick={() => handleExamButtonClick(module.id)}
-                                            className={`bg-white px-4 py-1 text-sm rounded-md ${getKey() && allVideosCompleted && progressPercentage === 100 && !quizPassed ? 'cursor-pointer' : !getKey() ? 'cursor-pointer' : 'cursor-not-allowed'}`}
-                                            disabled={getKey() && (!allVideosCompleted || progressPercentage !== 100 || quizPassed)}
+                                        <div 
+                                            className="relative inline-block"
+                                            onMouseEnter={(e) => {
+                                                const tooltip = e.currentTarget.querySelector('.tooltip-popup');
+                                                if (tooltip) {
+                                                    tooltip.classList.remove('hidden');
+                                                    tooltip.classList.add('block');
+                                                }
+                                            }}
+                                            onMouseLeave={(e) => {
+                                                const tooltip = e.currentTarget.querySelector('.tooltip-popup');
+                                                if (tooltip) {
+                                                    tooltip.classList.add('hidden');
+                                                    tooltip.classList.remove('block');
+                                                }
+                                            }}
                                         >
-                                            TAKE EXAM
-                                        </button>
+                                            <button
+                                                onClick={() => handleExamButtonClick(module.id)}
+                                                className={`bg-white px-4 py-1 text-sm rounded-md transition-all ${
+                                                    canTakeExam && !quizPassed 
+                                                        ? 'cursor-pointer hover:bg-gray-50 hover:shadow-md' 
+                                                        : 'cursor-not-allowed opacity-60'
+                                                }`}
+                                                disabled={!canTakeExam || quizPassed}
+                                            >
+                                                TAKE EXAM
+                                            </button>
+                                            {/* Hover Tooltip */}
+                                            <div className="tooltip-popup hidden absolute bottom-full right-0 mb-3 w-72 p-4 bg-gradient-to-r from-blue-900 via-blue-800 to-blue-900 text-white text-sm rounded-lg shadow-2xl pointer-events-none z-[9999]">
+                                                <p className="text-center leading-relaxed whitespace-normal">Sign up to save your progress and take the Exams</p>
+                                                {/* Tooltip Arrow */}
+                                                <div className="absolute top-full right-6 w-0 h-0 border-l-[8px] border-r-[8px] border-t-[8px] border-transparent border-t-blue-900"></div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div> : null}
 
