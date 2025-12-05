@@ -266,10 +266,26 @@ const CompletionCard = ({ moduleCount, videoProgress }) => {
                     <img
                         src={FooterLogo}
                         alt="ProClaim Logo"
-                        className="mb-4 sm:mb-6 md:mb-8 lg:mb-10 w-[120px] sm:w-[150px] md:w-[170px] lg:w-[200px]"
+                        className="mb-4 sm:mb-2 md:mb-4 lg:mb-10 w-[120px] sm:w-[150px] md:w-[170px] lg:w-[200px]"
                     />
 
                     {/* Form Container */}
+                    <span className="text-center text-lg font-bold">
+                        Log in or{" "}
+                        <span 
+                            className="underline cursor-pointer font-bold transition-colors"
+                            style={{ color: '#2563eb' }}
+                            onMouseEnter={(e) => e.target.style.color = '#1d4ed8'}
+                            onMouseLeave={(e) => e.target.style.color = '#2563eb'}
+                            onClick={() => {
+                                setLoginModal(false);
+                                setSignupModal(true);
+                            }}
+                        >
+                            create an account
+                        </span>{" "}
+                        to take exam or save progress
+                    </span>
                     <div className="bg-white p-4 sm:p-5 md:p-6 lg:p-8 w-full rounded-md">
                         <form onSubmit={formikLogin.handleSubmit}>
                             {/* Email Field */}
@@ -395,6 +411,22 @@ const CompletionCard = ({ moduleCount, videoProgress }) => {
                     />
 
                     {/* Form Container */}
+                    <span className="text-center text-lg font-bold">
+                        Log in or{" "}
+                        <span 
+                            className="underline cursor-pointer font-bold transition-colors"
+                            style={{ color: '#2563eb' }}
+                            onMouseEnter={(e) => e.target.style.color = '#1d4ed8'}
+                            onMouseLeave={(e) => e.target.style.color = '#2563eb'}
+                            onClick={() => {
+                                setLoginModal(false);
+                                setSignupModal(true);
+                            }}
+                        >
+                            create an account
+                        </span>{" "}
+                        to take exam or save progress
+                    </span>
                     <div className="flex flex-col min-h-0">
                         <form onSubmit={formik.handleSubmit}>
                             {/* Email */}

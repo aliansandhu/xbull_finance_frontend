@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from "react-router-dom";
 import { Formik, Form, Field, ErrorMessage } from 'formik';
 import * as Yup from 'yup';
 import icon from '../../assets/images/updatedLogo.png';
 import { userLogin } from "../../apis/Authentication/login";
 import { setKey } from "../../helpers/setKey";
+import { getKey } from "../../helpers/getKey";
 import { useAppContext } from "../../helpers/Context/AppContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
@@ -23,6 +24,13 @@ const LoginPage = () => {
     const navigate = useNavigate();
     const { setValue } = useAppContext();
     const [newPasswordVisible, setNewPasswordVisible] = useState(false);
+
+    // Redirect if already logged in
+    useEffect(() => {
+        if (getKey()) {
+            navigate('/');
+        }
+    }, [navigate]);
 
     const handleLogin = async (values, { setSubmitting, setFieldError }) => {
         try {
@@ -46,10 +54,13 @@ const LoginPage = () => {
 
     return (
         <div className="h-screen bg-blue-950 flex items-center justify-center">
-            <div className="justify-center items-center">
-                <img src={icon} alt="" width="350" className="ml-[10px] mb-10" />
+            <div className="flex flex-col justify-center items-center w-full">
+                <img src={icon} alt="" className="mb-10 max-w-[350px] w-full" onClick={() => navigate('/')} style={{ cursor: 'pointer' }} />
 
-                <div className="bg-white p-8 rounded-lg shadow-lg w-96">
+                <div className="bg-white p-8 rounded-lg shadow-lg w-[90%] max-w-[500px]">
+                    <p className="text-black text-center mb-6 text-lg font-bold">
+                        Login or <span style={{ color: '#3b82f6' }} className="cursor-pointer" onClick={() => navigate('/signup')}>Create an account</span> to take exam or save progress
+                    </p>
                     <Formik
                         initialValues={{ email: '', password: '' }}
                         validationSchema={LoginSchema}
@@ -72,7 +83,7 @@ const LoginPage = () => {
                                     <ErrorMessage
                                         name="email"
                                         component="div"
-                                        style={{color: 'red'}}
+                                        style={{ color: 'red' }}
                                         className="mt-1"
                                     />
                                 </div>
@@ -107,7 +118,7 @@ const LoginPage = () => {
                                     <ErrorMessage
                                         name="password"
                                         component="div"
-                                        style={{color: 'red'}}
+                                        style={{ color: 'red' }}
                                         className="mt-1"
                                     />
                                 </div>

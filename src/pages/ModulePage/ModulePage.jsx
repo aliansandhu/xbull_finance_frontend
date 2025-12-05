@@ -24,6 +24,8 @@ import { userRegister, userSignup } from "../../apis/Authentication/signup";
 import icon from "../../assets/images/updatedLogo.png";
 import { setKey } from "../../helpers/setKey";
 import { userLogin } from "../../apis/Authentication/login";
+import Badges from '../../assets/footer/Badges.png'
+
 
 // Cache utility functions for completed videos (same as LessonDetail)
 const CACHE_KEY = 'completedVideosCache';
@@ -70,8 +72,6 @@ const ModulePage = () => {
 
     const { value, setValue } = useAppContext();
 
-    const badge = value?.course?.course_badge || ''
-
     useEffect(() => {
         if (params.id && !hasFetchedData.current) {
             setLoading(true)
@@ -81,8 +81,13 @@ const ModulePage = () => {
                 setModules(res.data);
 
                 const newLessons = [];
+                const isLoggedIn = getKey();
+                
                 res.data.forEach((module) => {
-                    fetchModuleProgress(module.id);
+                    // Only fetch from API if logged in
+                    if (isLoggedIn) {
+                        fetchModuleProgress(module.id);
+                    }
 
                     module.lessons.forEach((subItem) => {
                         newLessons.push({
@@ -121,8 +126,11 @@ const ModulePage = () => {
                         [moduleId]: {
                             video_completed: res.data?.video_completed || false,
                             quiz_passed: res.data?.quiz_passed || false,
+                            module_completed: res.data?.module_completed || false,
+                            score: res.data?.score || null,
                             videos: videoCompletionStatus,
-                            progress_percentage: res?.data?.progress_percentage
+                            progress_percentage: res?.data?.progress_percentage,
+                            quiz_progress: res.data?.quiz_progress || []
                         }
                     }));
                     setLoading(false)
@@ -137,24 +145,50 @@ const ModulePage = () => {
 
 
     const handleStart = (moduleId, lessonId, index, quizPassed) => {
-            localStorage.setItem('moduleIndex', index)
-            setValue((prev) => ({
-                ...prev,
-                quizPassed: quizPassed
-            }))
-            navigate(`/module/${moduleId}/lesson/${lessonId}`);
+        localStorage.setItem('moduleIndex', index)
+        setValue((prev) => ({
+            ...prev,
+            quizPassed: quizPassed
+        }))
+        navigate(`/module/${moduleId}/lesson/${lessonId}`);
         // }
     };
 
     const handleDownload = async () => {
+        // Only allow download if all quizzes are passed
+        if (!allQuizzesPassed) {
+            toast.error("Please complete all module exams to download your badge");
+            return;
+        }
+
         try {
-            const response = await fetch(badge);
+            // Determine the correct badge image based on course level
+            let badgeImage;
+            let fileName;
+            
+            const courseLevel = value?.course?.level || '';
+
+            if (courseLevel === "Apprentice Level" || courseLevel.includes("Apprentice")) {
+                badgeImage = ApprenticeImage;
+                fileName = `Tier_1_Apprentice_Badge.png`;
+            } else if (courseLevel.includes("Expert")) {
+                badgeImage = ExpertImage;
+                fileName = `Tier_2_Expert_Badge.png`;
+            } else {
+                badgeImage = MasterImage;
+                fileName = `Tier_3_Master_Badge.png`;
+            }
+
+            // Fetch and download the badge image
+            const response = await fetch(badgeImage);
             if (!response.ok) throw new Error('Network response was not ok');
 
             const blob = await response.blob();
-            saveAs(blob, 'Apprentice_Badge_Round_2.png');
+            saveAs(blob, fileName);
+            toast.success("Badge downloaded successfully!");
         } catch (error) {
             console.error('Download failed:', error);
+            toast.error("Failed to download badge. Please try again.");
         }
     };
 
@@ -352,10 +386,10 @@ const ModulePage = () => {
                 <div className="absolute inset-0 bg-black/30 sm:bg-black/20 md:bg-black/10 -z-10"></div>
             </div>
 
-            <button 
+            <button
                 onClick={() => {
                     navigate('/')
-                }} 
+                }}
                 type="button"
                 className="cursor-pointer container flex w-full max-w-[1000px] mx-auto pt-10 px-4 items-center space-x-2 select-none relative z-10 bg-transparent border-none text-left"
                 style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent', userSelect: 'none' }}
@@ -370,50 +404,59 @@ const ModulePage = () => {
                 const lessons = module.lessons || [];
                 const previousModuleProgress = moduleProgressMap[modules[index - 1]?.id];
                 const isModuleUnlocked = index === 0 || (previousModuleProgress?.quiz_passed === true);
-                
-                // Count unique completed videos (combine API and cache)
-                // Prioritize cache since it's more reliable for user's current state
+                const isLoggedIn = getKey();
+
+                // Use API only if logged in, localStorage only if not logged in
                 const allCompletedVideoIds = new Set();
                 const apiCompletedVideoIds = new Set();
-                
-                // Get completed video IDs from API
-                if (progress.videos && Array.isArray(progress.videos)) {
-                    progress.videos.forEach((video) => {
-                        if (video.completed && video.video_id) {
-                            apiCompletedVideoIds.add(video.video_id);
-                            allCompletedVideoIds.add(video.video_id);
+
+                if (isLoggedIn) {
+                    // If logged in, use API only
+                    if (progress.videos && Array.isArray(progress.videos)) {
+                        progress.videos.forEach((video) => {
+                            if (video.completed && video.video_id) {
+                                apiCompletedVideoIds.add(video.video_id);
+                                allCompletedVideoIds.add(video.video_id);
+                            }
+                        });
+                    }
+                } else {
+                    // If not logged in, use localStorage only
+                    lessons.forEach((lesson) => {
+                        const lessonId = lesson[1];
+                        if (isVideoCompletedInCache(lessonId)) {
+                            allCompletedVideoIds.add(lessonId);
                         }
                     });
                 }
-                
-                // Add completed videos from cache (this is the primary source)
-                lessons.forEach((lesson) => {
-                    const lessonId = lesson[1];
-                    if (isVideoCompletedInCache(lessonId)) {
-                        allCompletedVideoIds.add(lessonId);
-                    }
-                });
-                
+
                 const totalCompletedVideos = allCompletedVideoIds.size;
                 const totalVideos = lessons.length;
                 const progressPercentage = totalVideos > 0 ? (totalCompletedVideos / totalVideos) * 100 : 0;
-                
-                // Check if all videos are completed (prioritize cache, fallback to API)
+
+                // Check if all videos are completed (use appropriate source based on login status)
                 const allVideosCompleted = lessons.every((lesson) => {
                     const lessonId = lesson[1];
-                    // Check cache first (most reliable)
-                    const videoCompletedFromCache = isVideoCompletedInCache(lessonId);
-                    // Check API as fallback
-                    const videoCompletedFromAPI = apiCompletedVideoIds.has(lessonId);
-                    return videoCompletedFromCache || videoCompletedFromAPI;
+                    if (isLoggedIn) {
+                        // If logged in, check API only
+                        return apiCompletedVideoIds.has(lessonId);
+                    } else {
+                        // If not logged in, check localStorage only
+                        return isVideoCompletedInCache(lessonId);
+                    }
                 });
 
                 const quizPassed = progress.quiz_passed === true;
+                // Handle from frontend: Check if any quiz in quiz_progress has passed: true
+                const quizProgress = progress.quiz_progress || [];
+                const hasPassedQuiz = quizProgress.some(quiz => quiz.passed === true);
+                // Module is passed if quiz_passed is true OR any quiz in quiz_progress has passed: true
+                const isModulePassed = quizPassed === true || hasPassedQuiz;
 
                 // Enable exam if all videos are completed (from cache or API) and count matches
                 // Trust cache more than API since cache reflects user's actual viewing
-                const canTakeExam = totalVideos > 0 && 
-                    totalCompletedVideos === totalVideos && 
+                const canTakeExam = totalVideos > 0 &&
+                    totalCompletedVideos === totalVideos &&
                     allVideosCompleted;
 
                 // Debug logging (can be removed in production)
@@ -433,14 +476,18 @@ const ModulePage = () => {
                 }
 
                 const handleExamButtonClick = async (moduleID) => {
+                    console.log('handleExamButtonClick called with moduleID:', moduleID);
                     setModuleId(moduleID)
-                    if(getKey()){
-                        if (canTakeExam && !quizPassed) {
-                            navigate(`/exam/${module.id}`);
-                        } else if (canTakeExam && quizPassed) {
-                            await toast.success("You have already passed the quiz for this module.");
+                    if (getKey()) {
+                        console.log('User is logged in, canTakeExam:', canTakeExam);
+                        if (canTakeExam) {
+                            console.log('Navigating to exam:', `/exam/${moduleID}`);
+                            navigate(`/exam/${moduleID}`);
+                        } else {
+                            console.log('Cannot take exam - canTakeExam is false');
                         }
-                    } else{
+                    } else {
+                        console.log('User not logged in, showing login modal');
                         setLoginModal(true)
                     }
                 };
@@ -452,12 +499,14 @@ const ModulePage = () => {
                             <div className={`flex justify-between items-center gap-2 p-0 bg-[#fff4ea]`}>
                                 <div className="flex bg-[#fff4ea]">
                                     <h4 className="!text-sm md:text-lg text-white bg-[#ff7f00] py-2 px-1 md:p-4 w-[120px] h-[52px] md:h-[60px] flex items-center justify-center">MODULE {index + 1}</h4>
-                                    <h3 className="flex items-center 2xl:text-17 xl:text-17 font-bold  md:p-4 p-1 py-2 sm:text-small-text md:text-17">{module.title}</h3>
+                                    <h3 className="flex items-center 2xl:text-17 xl:text-17 font-bold  md:p-4 p-1 py-2 sm:text-small-text md:text-17">
+                                        {module.title}
+                                    </h3>
                                 </div>
                                 <div className="w-[100px] md:w-auto py-2 md:p-4 bg-[#fff4ea] text-sm sm:text-small-text md:text-small-text text-[#a4a3a3]">
                                     {module.lectures_count} lectures
                                     <div>
-                                   {module.total_duration}
+                                        {module.total_duration}
 
                                     </div>
                                 </div>
@@ -474,15 +523,26 @@ const ModulePage = () => {
                                     const isFirstLesson = i === 0;
                                     const lessonId = lesson[1];
 
-                                    // Check if video is completed from API (by video_id) or cache
-                                    const videoCompletedFromAPI = apiCompletedVideoIds.has(lessonId);
-                                    const videoCompletedFromCache = isVideoCompletedInCache(lessonId);
-                                    const isVideoCompleted = videoCompletedFromAPI || videoCompletedFromCache;
+                                    // Check if video is completed (use appropriate source based on login status)
+                                    let isVideoCompleted;
+                                    if (isLoggedIn) {
+                                        // If logged in, check API only
+                                        isVideoCompleted = apiCompletedVideoIds.has(lessonId);
+                                    } else {
+                                        // If not logged in, check localStorage only
+                                        isVideoCompleted = isVideoCompletedInCache(lessonId);
+                                    }
 
                                     // Check previous lesson completion
                                     const prevLessonId = lessons[i - 1]?.[1];
-                                    const previousLessonCompleted = isFirstLesson || 
-                                        (prevLessonId && (apiCompletedVideoIds.has(prevLessonId) || isVideoCompletedInCache(prevLessonId)));
+                                    let previousLessonCompleted;
+                                    if (isFirstLesson) {
+                                        previousLessonCompleted = true;
+                                    } else if (isLoggedIn) {
+                                        previousLessonCompleted = apiCompletedVideoIds.has(prevLessonId);
+                                    } else {
+                                        previousLessonCompleted = isVideoCompletedInCache(prevLessonId);
+                                    }
                                     const isLessonUnlocked = isFirstLesson ? isModuleUnlocked : previousLessonCompleted;
 
                                     return (
@@ -498,10 +558,11 @@ const ModulePage = () => {
                                             </p>
                                             <button
                                                 onClick={() => handleStart(module.id, lesson[1], index, quizPassed)}
-                                                className={`px-4 py-1 text-sm rounded-md transition duration-300
-                                        ${'bg-gradient-to-tl from-[#d99b2c] via-[#ae6b00] to-[#da8100] text-white'
-                                                    }
-                                    `}
+                                                className={
+                                                    isVideoCompleted
+                                                        ? 'px-4 py-1 text-sm rounded-md transition duration-300 bg-gradient-to-r from-[#a8a8a8] via-[#8e8e8e] to-[#6b6b6b] text-white'
+                                                        : 'px-4 py-1 text-sm rounded-md transition duration-300 bg-gradient-to-r from-[#d99b2c] via-[#ae6b00] to-[#da8100] text-white'
+                                                }
                                             >
                                                 {isVideoCompleted ? 'REVIEW' : 'START'}
                                             </button>
@@ -509,13 +570,13 @@ const ModulePage = () => {
                                     );
                                 })}
                             </div>
-                            {quizPassed === false ?
+                            {!isModulePassed ? (
                                 <div className={'px-7 py-4 bg-gradient-to-r from-blue-900 via-blue-600 to-blue-900'}>
                                     <div
                                         className="flex justify-between items-center py-3">
                                         <p className="text-sm text-white  flex"><FaPen
                                             className={'mr-2 mt-1 fill-blue-300'} />Module {index + 1} Quiz</p>
-                                        <div 
+                                        <div
                                             className="relative inline-block"
                                             onMouseEnter={(e) => {
                                                 const tooltip = e.currentTarget.querySelector('.tooltip-popup');
@@ -534,24 +595,85 @@ const ModulePage = () => {
                                         >
                                             <button
                                                 onClick={() => handleExamButtonClick(module.id)}
-                                                className={`bg-white px-4 py-1 text-sm rounded-md transition-all ${
-                                                    canTakeExam && !quizPassed 
-                                                        ? 'cursor-pointer hover:bg-gray-50 hover:shadow-md' 
+                                                className={`bg-white px-2 md:px-4 py-1 text-sm rounded-md transition-all ${canTakeExam && !quizPassed
+                                                        ? 'cursor-pointer hover:bg-gray-50 hover:shadow-md'
                                                         : 'cursor-not-allowed opacity-60'
-                                                }`}
+                                                    }`}
                                                 disabled={!canTakeExam || quizPassed}
                                             >
                                                 TAKE EXAM
                                             </button>
-                                            {/* Hover Tooltip */}
+                                            {/* Hover Tooltip - Shows different message based on login status and module completion */}
                                             <div className="tooltip-popup hidden absolute bottom-full right-0 mb-3 w-72 p-4 bg-gradient-to-r from-blue-900 via-blue-800 to-blue-900 text-white text-sm rounded-lg shadow-2xl pointer-events-none z-[9999]">
-                                                <p className="text-center leading-relaxed whitespace-normal">Sign up to save your progress and take the Exams</p>
+                                                <p className="text-center leading-relaxed whitespace-normal">
+                                                    {!getKey()
+                                                        ? "Sign up to save your progress and take the Exams"
+                                                        : canTakeExam
+                                                            ? "You can take the exam"
+                                                            : "Complete the module to take exam"
+                                                    }
+                                                </p>
                                                 {/* Tooltip Arrow */}
                                                 <div className="absolute top-full right-6 w-0 h-0 border-l-[8px] border-r-[8px] border-t-[8px] border-transparent border-t-blue-900"></div>
                                             </div>
                                         </div>
                                     </div>
-                                </div> : null}
+                                </div>
+                            ) : (
+                                <div className={'px-7 py-4 bg-gradient-to-r from-blue-900 via-blue-600 to-blue-900'}>
+                                    <div
+                                        className="flex justify-between items-center py-3">
+                                        <p className="text-sm text-white  flex"><FaPen
+                                            className={'mr-2 mt-1 fill-blue-300'} />Module {index + 1} Quiz</p>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                className="bg-white px-4 py-1 text-sm rounded-md transition-all cursor-default flex items-center gap-2"
+                                                disabled
+                                            >
+                                                <FaCheckCircle className="text-[#6ace6a]" />
+                                                PASSED
+                                            </button>
+                                            <div
+                                                className="relative inline-block"
+                                                onMouseEnter={(e) => {
+                                                    const tooltip = e.currentTarget.querySelector('.tooltip-popup');
+                                                    if (tooltip) {
+                                                        tooltip.classList.remove('hidden');
+                                                        tooltip.classList.add('block');
+                                                    }
+                                                }}
+                                                onMouseLeave={(e) => {
+                                                    const tooltip = e.currentTarget.querySelector('.tooltip-popup');
+                                                    if (tooltip) {
+                                                        tooltip.classList.add('hidden');
+                                                        tooltip.classList.remove('block');
+                                                    }
+                                                }}
+                                            >
+                                                <button
+                                                    onClick={() => handleExamButtonClick(module.id)}
+                                                    className="bg-white px-2 md:px-4 py-1 text-sm rounded-md transition-all cursor-pointer hover:bg-gray-50 hover:shadow-md"
+                                                >
+                                                    RETAKE EXAM
+                                                </button>
+                                                {/* Hover Tooltip - Shows different message based on login status and module completion */}
+                                                <div className="tooltip-popup hidden absolute bottom-full right-0 mb-3 w-72 p-4 bg-gradient-to-r from-blue-900 via-blue-800 to-blue-900 text-white text-sm rounded-lg shadow-2xl pointer-events-none z-[9999]">
+                                                    <p className="text-center leading-relaxed whitespace-normal">
+                                                        {!getKey()
+                                                            ? "Sign up to save your progress and take the Exams"
+                                                            : canTakeExam
+                                                                ? "You can take the exam"
+                                                                : "Complete the module to take exam"
+                                                        }
+                                                    </p>
+                                                    {/* Tooltip Arrow */}
+                                                    <div className="absolute top-full right-6 w-0 h-0 border-l-[8px] border-r-[8px] border-t-[8px] border-transparent border-t-blue-900"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
 
 
                         </div>
@@ -560,8 +682,8 @@ const ModulePage = () => {
             })}
 
 
-            <div className="container w-full max-w-[1000px] mx-auto py-10 px-4 shadow-lg">
-                <h3 className="bg-[#0054c8] text-white p-6 text-lg font-bold">Beginner’s Guide to Digital Asset
+            <div className="container w-full max-w-[1000px] mx-auto py-10 px-4">
+                <h3 className="bg-[#0054c8] text-white p-6 text-lg font-bold mb-0.5">Beginner’s Guide to Digital Asset
                     Management</h3>
 
                 {/*    <div className="mt-4 flex justify-between p-6 items-center pb-3">*/}
@@ -581,24 +703,56 @@ const ModulePage = () => {
                 {/*    </div>*/}
 
                 {/* Certification */}
-                <div className="mt-4 flex p-6 justify-between items-center">
-                    <p className="flex items-center gap-2">
-                        <FaPen className="text-darkGrey" /> Earn Your {value?.course?.level} Certification
-                    </p>
-                    <button
-                        onClick={(e) => {
-                            e.preventDefault()
-                            handleDownload()
+                <div className="w-full flex items-center justify-center">
+                    <div
+                        style={{
+                            background: "linear-gradient(90deg, #d87506 0%, #6a554a 30%, #0a2f63 55%, #064fbf 100%)",
                         }}
-                        className={`px-4 py-1 text-sm rounded-md transition duration-300 
-                        ${allQuizzesPassed
-                                ? 'bg-gradient-to-tl from-[#d99b2c] via-[#ae6b00] to-[#da8100] text-white'
-                                : 'bg-[#b4c2d5] text-white cursor-not-allowed'}
-                        `}
-                        disabled={!allQuizzesPassed}
+                        className="w-full min-h-[400px] sm:min-h-[250px] md:h-64 lg:h-64 xl:h-72 flex flex-col sm:flex-row items-center justify-center sm:justify-between px-4 md:px-2 py-6 sm:py-4 md:py-6"
                     >
-                        Download Badge
-                    </button>
+                        {/* Mobile: Badges on top, Desktop: Badge on left */}
+                        <div className="flex-shrink-0 order-1 sm:order-1 flex items-center justify-center sm:justify-start">
+                            <div className="relative w-[120px] h-[120px] sm:w-auto sm:h-20 md:h-24 lg:h-32">
+                                <img 
+                                    src={Badges} 
+                                    alt="Badges" 
+                                    className="w-full h-full sm:w-auto sm:h-full object-contain drop-shadow-lg" 
+                                />
+                            </div>
+                        </div>
+
+                        {/* Mobile: Text and Button stacked, Desktop: Text in middle */}
+                        <div className="flex-1 flex flex-col md:flex-row items-center md:items-center justify-center gap-4 md:gap-2 order-2 sm:order-2 px-2 sm:px-4 w-full sm:w-auto">
+                            {/* Text Content */}
+                            <div className="w-full md:flex-1 text-center sm:text-left">
+                                <p className="text-white text-base sm:text-lg md:text-xl lg:text-2xl xl:text-3xl font-bold mb-2 sm:mb-1 md:mb-2">
+                                    Get your DeFi & Web3 Certification for FREE!
+                                </p>
+                                <p className="text-white text-xs sm:text-sm md:text-base lg:text-lg">
+                                    Once you pass all 7 exams, you will be able to download your certificate, and we will email it to you as well! Enjoy!
+                                </p>
+                            </div>
+
+                            {/* Download Button */}
+                            <div className="flex-shrink-0 w-full sm:w-auto order-3 sm:order-3">
+                                <button
+                                    onClick={(e) => {
+                                        e.preventDefault()
+                                        handleDownload()
+                                    }}
+                                    className={`w-full sm:w-auto px-3 py-1.5 sm:px-4 sm:py-2 md:px-5 md:py-2.5 text-xs sm:text-sm md:text-base rounded-md transition duration-300 whitespace-nowrap
+                                    ${allQuizzesPassed
+                                            ? ' bg-gradient-to-r from-[#d99b2c] via-[#ae6b00] to-[#da8100] text-white hover:opacity-90'
+                                            : ' bg-gradient-to-r from-[#d99b2c] via-[#ae6b00] to-[#da8100] text-white cursor-not-allowed'}
+                                    `}
+                                    disabled={!allQuizzesPassed}
+                                >
+                                    <span className="hidden sm:inline">Download Badge</span>
+                                    <span className="sm:hidden">Download</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
             <Modal
@@ -620,7 +774,23 @@ const ModulePage = () => {
                         className="mb-6 sm:mb-8 sm-md:mb-10 w-[140px] sm:w-[170px] sm-md:w-[200px]"
                     />
 
-                    {/* Form Container */}
+                    <span className="text-center text-lg font-bold">
+                        Log in or{" "}
+                        <span
+                            className="underline cursor-pointer font-bold transition-colors"
+                            style={{ color: '#2563eb' }}
+                            onMouseEnter={(e) => e.target.style.color = '#1d4ed8'}
+                            onMouseLeave={(e) => e.target.style.color = '#2563eb'}
+                            onClick={() => {
+                                setLoginModal(false);
+                                setSignupModal(true);
+                            }}
+                        >
+                            create an account
+                        </span>{" "}
+                        to take exam or save progress
+                    </span>
+
                     <div className="flex flex-col min-h-0">
                         <form onSubmit={formik.handleSubmit}>
                             {/* Email */}
@@ -636,8 +806,8 @@ const ModulePage = () => {
                                     type="email"
                                     {...formik.getFieldProps("email")}
                                     className={`w-full p-2.5 sm:p-3 border ${formik.touched.email && formik.errors.email
-                                            ? "border-red-500"
-                                            : "border-gray-300"
+                                        ? "border-red-500"
+                                        : "border-gray-300"
                                         } rounded-md focus:outline-none focus:ring-2 focus:ring-[#d99b2c] text-xs sm:text-sm sm-md:text-base`}
                                     placeholder="Enter your email"
                                 />
@@ -660,8 +830,8 @@ const ModulePage = () => {
                                         type={newPasswordVisible ? "text" : "password"}
                                         {...formik.getFieldProps("password")}
                                         className={`w-full p-2.5 sm:p-3 border ${formik.touched.password && formik.errors.password
-                                                ? "border-red-500"
-                                                : "border-gray-300"
+                                            ? "border-red-500"
+                                            : "border-gray-300"
                                             } rounded-md focus:outline-none focus:ring-2 focus:ring-[#d99b2c] text-xs sm:text-sm sm-md:text-base`}
                                         placeholder="Enter your password"
                                     />
@@ -728,8 +898,8 @@ const ModulePage = () => {
                                         type={confirmPasswordVisible ? "text" : "password"}
                                         {...formik.getFieldProps("confirm_password")}
                                         className={`w-full p-2.5 sm:p-3 border ${formik.touched.confirm_password && formik.errors.confirm_password
-                                                ? "border-red-500"
-                                                : "border-gray-300"
+                                            ? "border-red-500"
+                                            : "border-gray-300"
                                             } rounded-md focus:outline-none focus:ring-2 focus:ring-[#d99b2c] text-xs sm:text-sm sm-md:text-base`}
                                         placeholder="Confirm your password"
                                     />
@@ -804,7 +974,7 @@ const ModulePage = () => {
 
             <Modal
                 open={loginModal}
-                onClose={() => setLoginModal(false)}
+                onClose={() => setLoginModal(false)}F
                 center
                 classNames={{
                     modal:
@@ -816,10 +986,26 @@ const ModulePage = () => {
                     <img
                         src={FooterLogo}
                         alt="ProClaim Logo"
-                        className="mb-6 sm:mb-8 sm-md:mb-10 w-[140px] sm:w-[170px] sm-md:w-[200px]"
+                        className="mb-2 sm:mb-8 sm-md:mb-10 w-[140px] sm:w-[170px] sm-md:w-[200px]"
                     />
 
                     {/* Form Container */}
+                    <span className="text-center text-lg font-bold">
+                        Log in or{" "}
+                        <span
+                            className="underline cursor-pointer font-bold transition-colors"
+                            style={{ color: '#2563eb' }}
+                            onMouseEnter={(e) => e.target.style.color = '#1d4ed8'}
+                            onMouseLeave={(e) => e.target.style.color = '#2563eb'}
+                            onClick={() => {
+                                setLoginModal(false);
+                                setSignupModal(true);
+                            }}
+                        >
+                            create an account
+                        </span>{" "}
+                        to take exam or save progress
+                    </span>
                     <div className="bg-white p-5 sm:p-6 sm-md:p-8 w-full rounded-md">
                         <form onSubmit={formikLogin.handleSubmit}>
                             {/* Email Field */}
@@ -835,8 +1021,8 @@ const ModulePage = () => {
                                     type="email"
                                     {...formikLogin.getFieldProps("email")}
                                     className={`w-full p-2.5 sm:p-3 border ${formikLogin.touched.email && formikLogin.errors.email
-                                            ? "border-red-500"
-                                            : "border-gray-300"
+                                        ? "border-red-500"
+                                        : "border-gray-300"
                                         } rounded-md focus:outline-none focus:ring-2 focus:ring-[#d99b2c] text-xs sm:text-sm sm-md:text-base`}
                                     placeholder="Enter your email"
                                 />
@@ -861,8 +1047,8 @@ const ModulePage = () => {
                                         type={newPasswordVisible ? "text" : "password"}
                                         {...formikLogin.getFieldProps("password")}
                                         className={`w-full p-2.5 sm:p-3 border ${formikLogin.touched.password && formikLogin.errors.password
-                                                ? "border-red-500"
-                                                : "border-gray-300"
+                                            ? "border-red-500"
+                                            : "border-gray-300"
                                             } rounded-md focus:outline-none focus:ring-2 focus:ring-[#d99b2c] text-xs sm:text-sm sm-md:text-base`}
                                         placeholder="Enter your password"
                                     />

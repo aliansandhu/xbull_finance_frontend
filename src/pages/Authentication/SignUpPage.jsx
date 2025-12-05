@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import icon from "../../assets/images/updatedLogo.png";
 import { useNavigate } from "react-router-dom";
 import { userRegister, userSignup } from "../../apis/Authentication/signup";
+import { getKey } from "../../helpers/getKey";
 import "react-phone-number-input/style.css";
 import PhoneInput from "react-phone-number-input";
 import { toast } from "react-toastify";
@@ -28,6 +29,13 @@ const SignUpPage = () => {
   const [newPasswordVisible, setNewPasswordVisible] = useState(false);
   const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
   const [err, setErr] = useState("");
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (getKey()) {
+      navigate('/');
+    }
+  }, [navigate]);
 
   // ✅ Yup Validation Schema
   const validationSchema = Yup.object({
@@ -75,7 +83,7 @@ const SignUpPage = () => {
         }
       } catch (error) {
         toast.error("An error occurred during signup. Please try again.");
-      } finally{
+      } finally {
         setSubmitting(false)
       }
     },
@@ -93,10 +101,13 @@ const SignUpPage = () => {
 
   return (
     <div className="h-full py-8 bg-blue-950 flex items-center justify-center">
-      <div className="justify-center items-center">
-        <img src={icon} alt="" width="350" className="ml-[10px] mb-10" />
+      <div className="flex flex-col justify-center items-center w-full">
+        <img src={icon} alt="" className="mb-10 max-w-[350px] w-full" />
 
-        <div className="bg-white p-8 rounded-lg shadow-lg w-96">
+        <div className="bg-white p-8 rounded-lg shadow-lg w-[90%] max-w-[500px]">
+          <p className="text-black text-center mb-6 text-lg font-bold">
+            Login or <span style={{ color: '#3b82f6' }} className="cursor-pointer" onClick={() => navigate('/signup')}>Create an account</span> to take exam or save progress
+          </p>
           <form onSubmit={formik.handleSubmit}>
             {/* Email */}
             <div className="mb-6">
@@ -107,11 +118,10 @@ const SignUpPage = () => {
                 id="email"
                 type="email"
                 {...formik.getFieldProps("email")}
-                className={`w-full p-3 border ${
-                  formik.touched.email && formik.errors.email
-                    ? "border-red-500"
-                    : "border-gray-300"
-                } rounded-md focus:outline-none focus:ring-2 focus:ring-[#d99b2c]`}
+                className={`w-full p-3 border ${formik.touched.email && formik.errors.email
+                  ? "border-red-500"
+                  : "border-gray-300"
+                  } rounded-md focus:outline-none focus:ring-2 focus:ring-[#d99b2c]`}
                 placeholder="Enter your email"
               />
               {formik.touched.email && formik.errors.email && (
@@ -205,11 +215,10 @@ const SignUpPage = () => {
                   id="password"
                   type={newPasswordVisible ? "text" : "password"}
                   {...formik.getFieldProps("password")}
-                  className={`w-full p-3 border ${
-                    formik.touched.password && formik.errors.password
-                      ? "border-red-500"
-                      : "border-gray-300"
-                  } rounded-md focus:outline-none focus:ring-2 focus:ring-[#d99b2c]`}
+                  className={`w-full p-3 border ${formik.touched.password && formik.errors.password
+                    ? "border-red-500"
+                    : "border-gray-300"
+                    } rounded-md focus:outline-none focus:ring-2 focus:ring-[#d99b2c]`}
                   placeholder="Enter your password"
                 />
                 <div
@@ -225,7 +234,7 @@ const SignUpPage = () => {
               </div>
 
               {formik.touched.password && formik.errors.password && (
-                <p style={{color: 'red', fontSize: '12px'}}>{formik.errors.password}</p>
+                <p style={{ color: 'red', fontSize: '12px' }}>{formik.errors.password}</p>
               )}
 
               <div>
@@ -246,11 +255,10 @@ const SignUpPage = () => {
                   id="confirm_password"
                   type={confirmPasswordVisible ? "text" : "password"}
                   {...formik.getFieldProps("confirm_password")}
-                  className={`w-full p-3 border ${
-                    formik.touched.confirm_password && formik.errors.confirm_password
-                      ? "border-red-500"
-                      : "border-gray-300"
-                  } rounded-md focus:outline-none focus:ring-2 focus:ring-[#d99b2c]`}
+                  className={`w-full p-3 border ${formik.touched.confirm_password && formik.errors.confirm_password
+                    ? "border-red-500"
+                    : "border-gray-300"
+                    } rounded-md focus:outline-none focus:ring-2 focus:ring-[#d99b2c]`}
                   placeholder="Confirm your password"
                 />
                 <div
@@ -266,13 +274,13 @@ const SignUpPage = () => {
               </div>
 
               {formik.touched.confirm_password && formik.errors.confirm_password && (
-                <p style={{color: 'red', fontSize: '12px'}}>{formik.errors.confirm_password}</p>
+                <p style={{ color: 'red', fontSize: '12px' }}>{formik.errors.confirm_password}</p>
               )}
 
               <PasswordRequirement isValid={passwordCriteria.matches} text="Password should match" />
             </div>
 
-            {err && <p style={{color: 'red'}} className="mb-3 mt-3 text-center text-12">{err}</p>}
+            {err && <p style={{ color: 'red' }} className="mb-3 mt-3 text-center text-12">{err}</p>}
 
             <button
               type="submit"

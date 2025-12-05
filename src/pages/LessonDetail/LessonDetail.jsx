@@ -9,6 +9,7 @@ import XLogo from "../../assets/images/x_logo.png";
 import { patchModuleProgress } from "../../apis/Module/moduleProgress";
 import NextLessonCard from "../../components/NextLessonCard/NextLessonCard";
 import { useAppContext } from "../../helpers/Context/AppContext";
+import { getKey } from "../../helpers/getKey";
 
 let array = []
 
@@ -63,26 +64,27 @@ const LessonDetail = () => {
 
     useEffect(() => {
         setLoading(true)
+        const isLoggedIn = getKey();
+        
         getLectures(params.moduleId).then((res) => {
             setInitials({ title: res.data.module, id: res.data.id });
             setLectures(res.data.videos);
 
-            // Load completed videos from cache first
-            const cachedCompletedVideos = getCompletedVideosFromCache();
-            let completedLessons = [...cachedCompletedVideos];
+            let completedLessons = [];
 
             const checkLessons = res.data.videos.map(async (lesson) => {
-                // Check cache first
-                if (isVideoCompletedInCache(lesson.id)) {
-                    if (!completedLessons.includes(lesson.id)) {
-                        completedLessons.push(lesson.id);
-                    }
-                } else {
-                    // If not in cache, check API
+                if (isLoggedIn) {
+                    // If logged in, check API only
                     const progress = await fetchVideoProgress(lesson.id);
                     if (progress?.completed) {
                         completedLessons.push(lesson.id);
-                        saveCompletedVideoToCache(lesson.id);
+                    }
+                } else {
+                    // If not logged in, check localStorage only
+                    if (isVideoCompletedInCache(lesson.id)) {
+                        if (!completedLessons.includes(lesson.id)) {
+                            completedLessons.push(lesson.id);
+                        }
                     }
                 }
             });
@@ -118,59 +120,71 @@ const LessonDetail = () => {
     }, [params.moduleId, params.lessonId]);
 
     const fetchVideoProgress = async (lessonId) => {
-        // Check cache first
-        if (isVideoCompletedInCache(lessonId)) {
-            const isCompleted = true;
+        const isLoggedIn = getKey();
+        
+        if (isLoggedIn) {
+            // If logged in, use API only
+            try {
+                const response = await getVideoProgress(lessonId);
+                const isCompleted = response?.data?.completed || false;
+                setVideoProgress((prev) => ({
+                    ...prev,
+                    completed: isCompleted,
+                    watched_seconds: response?.data?.watched_seconds || 0
+                }));
+
+                if (isCompleted && !completedVideos.includes(lessonId)) {
+                    setCompletedVideos((prev) => [...prev, lessonId]);
+                }
+
+                return { completed: isCompleted };
+            } catch (error) {
+                console.error('Error fetching video progress from API:', error);
+                return { completed: false };
+            }
+        } else {
+            // If not logged in, use localStorage only
+            const isCompleted = isVideoCompletedInCache(lessonId);
             setVideoProgress((prev) => ({
                 ...prev,
                 completed: isCompleted,
                 watched_seconds: prev.watched_seconds || 0
             }));
 
-            if (!completedVideos.includes(lessonId)) {
-                setCompletedVideos((prev) => [...prev, lessonId]);
-            }
-
-            return { completed: isCompleted };
-        }
-
-        // If not in cache, try API
-        try {
-            const response = await getVideoProgress(lessonId);
-            const isCompleted = response?.data?.completed || false;
-            setVideoProgress((prev) => ({
-                ...prev,
-                completed: isCompleted,
-                watched_seconds: response?.data?.watched_seconds || 0
-            }));
-
             if (isCompleted && !completedVideos.includes(lessonId)) {
                 setCompletedVideos((prev) => [...prev, lessonId]);
-                saveCompletedVideoToCache(lessonId);
             }
 
             return { completed: isCompleted };
-        } catch (error) {
-            console.error('Error fetching video progress:', error);
-            // Even if API fails, check cache as fallback
-            const cachedCompleted = isVideoCompletedInCache(lessonId);
-            if (cachedCompleted) {
-                setVideoProgress((prev) => ({
-                    ...prev,
-                    completed: true,
-                    watched_seconds: prev.watched_seconds || 0
-                }));
-                if (!completedVideos.includes(lessonId)) {
-                    setCompletedVideos((prev) => [...prev, lessonId]);
-                }
-                return { completed: true };
-            }
-            return { completed: false };
         }
     };
 
 
-    const handleLessonClick = (lesson, index) => {
+    const handleLessonClick = async (lesson, index) => {
+        const isLoggedIn = getKey();
+        
+        // Save current video progress before navigating
+        if (selectedLesson?.id) {
+            const currentVideoId = selectedLesson.id;
+            const currentTime = videoRef.current?.currentTime || videoProgress.watched_seconds || 0;
+            const isCompleted = videoProgress.completed || false;
+
+            if (isLoggedIn) {
+                // If logged in, save to API only
+                try {
+                    await pauseVideo(currentVideoId, isCompleted, currentTime);
+                } catch (error) {
+                    console.error('Error saving video progress to API:', error);
+                    // Still continue navigation even if API fails
+                }
+            } else {
+                // If not logged in, save to localStorage only
+                if (isCompleted) {
+                    saveCompletedVideoToCache(currentVideoId);
+                }
+            }
+        }
+
         if (selectedLesson?.id !== lesson.id) {
             if (videoRef.current) {
                 videoRef.current.pause();
@@ -210,13 +224,11 @@ const LessonDetail = () => {
     };
 
     const handleCompleteVideo = async (e) => {
+        const isLoggedIn = getKey();
+        
         if (!videoProgress.completed) {
-            // Immediately mark as completed and save to cache (don't wait for API)
             const videoId = selectedLesson.id;
             const currentTime = e.target.currentTime;
-            
-            // Save to cache immediately
-            saveCompletedVideoToCache(videoId);
             
             // Update state immediately to show checkmark
             setVideoEnded(true);
@@ -234,11 +246,18 @@ const LessonDetail = () => {
                 return prev;
             });
 
-            // Try API call in background (don't wait for it, don't fail if it errors)
-            pauseVideo(videoId, true, currentTime).catch(error => {
-                console.log('API call failed, but video is marked as completed in cache:', error);
-                // Video is already marked as completed in cache, so we continue
-            });
+            if (isLoggedIn) {
+                // If logged in, save to API only
+                try {
+                    await pauseVideo(videoId, true, currentTime);
+                } catch (error) {
+                    console.error('Error saving video progress to API:', error);
+                    // Still continue even if API fails
+                }
+            } else {
+                // If not logged in, save to localStorage only
+                saveCompletedVideoToCache(videoId);
+            }
 
             const currentIndex = lectures.findIndex(lesson => lesson.id === videoId);
             if (currentIndex !== -1 && currentIndex < lectures.length - 1) {
@@ -250,11 +269,12 @@ const LessonDetail = () => {
             const currentIndex = lectures.findIndex(lesson => lesson.id === selectedLesson.id);
             if (currentIndex !== -1 && currentIndex < lectures.length - 1) {
                 setNextLesson(lectures[currentIndex + 1]);
-                await patchModuleProgress(params.moduleId)
+                if (isLoggedIn) {
+                    await patchModuleProgress(params.moduleId);
+                }
             } else {
                 setVideoEnded(true)
                 setNextLesson(null);
-
             }
         }
     };

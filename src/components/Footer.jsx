@@ -1,5 +1,5 @@
 import React from "react";
-import FooterLogo from '../assets/images/XbullFooter.png'
+import BackgroundImage from '../assets/footer/footer-bg.png'
 import {FaXTwitter} from "react-icons/fa6";
 import {useNavigate} from "react-router-dom";
 

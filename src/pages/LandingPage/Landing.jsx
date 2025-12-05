@@ -262,9 +262,9 @@ const Landing = () => {
                         {testimonials.map((testimonial, index) => (
                             <SwiperSlide key={index}>
                            
-                                <div key={index} className="p-6 bg-white rounded-lg">
-                                <p className="italic">“{testimonial.text}”</p>
-                                <p className="mt-4 font-semibold">{testimonial.name}</p>
+                                <div key={index} className="p-4 sm:p-5 md:p-6 bg-white rounded-lg h-[200px] sm:h-[200px] md:h-[250px] lg:h-[250px] xl:h-[250px] flex flex-col">
+                                <p className="italic text-sm sm:text-base md:text-lg flex-grow overflow-y-auto">"{testimonial.text}"</p>
+                                <p className="mt-4 font-semibold text-sm sm:text-base md:text-lg flex-shrink-0">{testimonial.name}</p>
                             </div>
                             </SwiperSlide>
                         ))}
