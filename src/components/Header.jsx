@@ -21,7 +21,7 @@ const Header = () => {
 
     const handleLogout = () => {
         localStorage.clear()
-        navigate('/login')
+        navigate('/')
     }
 
     const handleOutsideClick = (event) => {

@@ -155,6 +155,12 @@ const ModulePage = () => {
     };
 
     const handleDownload = async () => {
+        // Check if user is logged in
+        if (!getKey()) {
+            toast.error("Please login to download your badge");
+            return;
+        }
+
         // Only allow download if all quizzes are passed
         if (!allQuizzesPassed) {
             toast.error("Please complete all module exams to download your badge");
@@ -360,12 +366,12 @@ const ModulePage = () => {
                 </h2>
 
                 {/* Description */}
-                <p className="text-sm sm:text-lg mt-3 w-[90%] sm:w-8/12 md:w-7/12 leading-relaxed">
+                <p className="text-sm sm:text-lg w-[95%] md:w-[60%] mx-auto leading-relaxed">
                     {value?.course?.description}
                 </p>
 
                 {/* Earn Badge Section */}
-                <div className="flex flex-col sm:flex-row justify-center items-center gap-4 sm:gap-6 mt-10 sm:mt-16 w-full">
+                <div className="flex flex-col sm:flex-row justify-center items-center gap-4 sm:gap-1 mt-10 sm:mt-16 w-full">
                     <p className="text-sm sm:text-lg w-[90%] sm:w-8/12 md:w-6/12 leading-snug">
                         Earn your {value?.course?.level} certification by passing the lessons below
                     </p>
@@ -496,18 +502,19 @@ const ModulePage = () => {
                 return (
                     <div key={module.id} className="container w-full max-w-[1000px] mx-auto py-5 md:px-4 px-1 rounded-md">
                         <div className="bg-white shadow-xl rounded-lg mt-4 ">
-                            <div className={`flex justify-between items-center gap-2 p-0 bg-[#fff4ea]`}>
-                                <div className="flex bg-[#fff4ea]">
-                                    <h4 className="!text-sm md:text-lg text-white bg-[#ff7f00] py-2 px-1 md:p-4 w-[120px] h-[52px] md:h-[60px] flex items-center justify-center">MODULE {index + 1}</h4>
-                                    <h3 className="flex items-center 2xl:text-17 xl:text-17 font-bold  md:p-4 p-1 py-2 sm:text-small-text md:text-17">
-                                        {module.title}
+                            <div className={`flex justify-between items-stretch gap-2 p-0 bg-[#fff4ea] min-h-[60px] sm:min-h-[70px] md:min-h-[60px]`}>
+                                <div className="flex bg-[#fff4ea] flex-1 min-w-0">
+                                    <h4 className="text-xs sm:text-sm md:text-base lg:text-lg text-white bg-[#ff7f00] py-2 px-1 sm:px-3 md:px-4 w-[90px] sm:w-[110px] md:w-[130px] lg:w-[150px] flex items-center justify-center text-center font-semibold">
+                                        MODULE {index + 1}
+                                    </h4>
+                                    <h3 className="flex items-center font-bold px-2 sm:px-3 md:px-4 text-xs sm:text-sm md:text-base lg:text-lg xl:text-17 2xl:text-17 break-words flex-1 min-w-0">
+                                        <span className="line-clamp-2 leading-tight sm:leading-normal">{module.title}</span>
                                     </h3>
                                 </div>
-                                <div className="w-[100px] md:w-auto py-2 md:p-4 bg-[#fff4ea] text-sm sm:text-small-text md:text-small-text text-[#a4a3a3]">
-                                    {module.lectures_count} lectures
-                                    <div>
+                                <div className="flex flex-col justify-center px-2 sm:px-3 md:px-4 py-2 bg-[#fff4ea] text-xs sm:text-sm md:text-base text-[#a4a3a3] whitespace-nowrap">
+                                    <div className="font-medium">{module.lectures_count} lectures</div>
+                                    <div className="text-xs sm:text-sm">
                                         {module.total_duration}
-
                                     </div>
                                 </div>
                             </div>
@@ -554,7 +561,7 @@ const ModulePage = () => {
                                                 ) : (
                                                     <FaYoutube className="flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7" />
                                                 )}
-                                                <span className="break-words flex-1">{lesson[0]}</span>
+                                                <span className="break-words flex-1 truncate w-[200px] md:w-auto">{lesson[0]}</span>
                                             </p>
                                             <button
                                                 onClick={() => handleStart(module.id, lesson[1], index, quizPassed)}
@@ -741,11 +748,11 @@ const ModulePage = () => {
                                         handleDownload()
                                     }}
                                     className={`w-full sm:w-auto px-3 py-1.5 sm:px-4 sm:py-2 md:px-5 md:py-2.5 text-xs sm:text-sm md:text-base rounded-md transition duration-300 whitespace-nowrap
-                                    ${allQuizzesPassed
+                                    ${allQuizzesPassed && getKey()
                                             ? ' bg-gradient-to-r from-[#d99b2c] via-[#ae6b00] to-[#da8100] text-white hover:opacity-90'
-                                            : ' bg-gradient-to-r from-[#d99b2c] via-[#ae6b00] to-[#da8100] text-white cursor-not-allowed'}
+                                            : ' bg-gradient-to-r from-[#d99b2c] via-[#ae6b00] to-[#da8100] text-white cursor-not-allowed opacity-60'}
                                     `}
-                                    disabled={!allQuizzesPassed}
+                                    disabled={!allQuizzesPassed || !getKey()}
                                 >
                                     <span className="hidden sm:inline">Download Badge</span>
                                     <span className="sm:hidden">Download</span>

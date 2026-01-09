@@ -30,10 +30,10 @@ const SignUpPage = () => {
   const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
   const [err, setErr] = useState("");
 
-  // Redirect if already logged in
+  // Redirect if already logged in (signup page is only for users who are NOT logged in)
   useEffect(() => {
     if (getKey()) {
-      navigate('/');
+      navigate('/', { replace: true });
     }
   }, [navigate]);
 

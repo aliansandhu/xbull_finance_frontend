@@ -8,7 +8,7 @@ import { setKey } from "../../helpers/setKey";
 import { getKey } from "../../helpers/getKey";
 import { useAppContext } from "../../helpers/Context/AppContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
+import { faEye, faEyeSlash, faTimes } from "@fortawesome/free-solid-svg-icons";
 
 // ✅ Validation schema using Yup
 const LoginSchema = Yup.object().shape({
@@ -25,10 +25,10 @@ const LoginPage = () => {
     const { setValue } = useAppContext();
     const [newPasswordVisible, setNewPasswordVisible] = useState(false);
 
-    // Redirect if already logged in
+    // Redirect if already logged in (login page is only for users who are NOT logged in)
     useEffect(() => {
         if (getKey()) {
-            navigate('/');
+            navigate('/', { replace: true });
         }
     }, [navigate]);
 
@@ -53,9 +53,14 @@ const LoginPage = () => {
     };
 
     return (
-        <div className="h-screen bg-blue-950 flex items-center justify-center">
-            <div className="flex flex-col justify-center items-center w-full">
+        <div className="h-screen bg-blue-950  flex items-center justify-center">
+            <div className="flex flex-col justify-center items-center w-full opacity-100 z-10">
+                <div className="flex items-center justify-between gap-20">
                 <img src={icon} alt="" className="mb-10 max-w-[350px] w-full" onClick={() => navigate('/')} style={{ cursor: 'pointer' }} />
+                <div className="text-white text-2xl font-bold cursor-pointer" onClick={() => navigate('/')}>
+                    <FontAwesomeIcon icon={faTimes} />
+                </div>
+                </div>
 
                 <div className="bg-white p-8 rounded-lg shadow-lg w-[90%] max-w-[500px]">
                     <p className="text-black text-center mb-6 text-lg font-bold">

@@ -138,7 +138,7 @@ const Landing = () => {
                                             {/* Card Header with image and tier */}
                                             <div className="relative">
                                                 <img src={course.course_image} alt={course.title}
-                                                     className="w-auto h-auto px-4 sm:px-6 md:px-10"/>
+                                                     className="w-auto h-auto px-4 sm:px-6 md:px-10 mt-2"/>
                                                 <div
                                                     className={`${tierHandling(course.level).bgColor} absolute top-0 left-0 w-[80px] sm:w-[90px] md:w-[100px] text-white px-3 py-2 sm:px-4 sm:py-2.5 md:px-6 md:py-3 text-sm sm:text-base md:text-lg font-semibold`}>
                                                     Tier {course.tier}
@@ -147,7 +147,7 @@ const Landing = () => {
 
                                             {/* Card Body with content */}
                                             <div className="flex flex-col p-4 sm:p-5 md:p-6">
-                                                <h3 className="text-center mb-3 sm:mb-4 text-base sm:text-lg md:text-xl font-bold line-clamp-2">{course.title}</h3>
+                                                <h2 className="text-center mb-2 sm:mb-3 text-12 sm:text-16 md:text-20 font-bold line-clamp-2">{course.title}</h2>
                                                 <div className="py-4 pt-0 mt-auto">
                                                     <button
                                                         onClick={() => {
@@ -186,7 +186,7 @@ const Landing = () => {
                                     {/* Card Header with image and tier */}
                                     <div className="relative">
                                         <img src={tierHandling('Master').tierImage} alt={''}
-                                             className="w-auto h-auto px-4 sm:px-6 md:px-10"/>
+                                             className="w-auto h-auto px-4 sm:px-6 md:px-10 mt-2"/>
                                         <div
                                             className={`${tierHandling('Master').bgColor} absolute top-0 left-0 w-[80px] sm:w-[90px] md:w-[100px] text-white px-3 py-2 sm:px-4 sm:py-2.5 md:px-6 md:py-3 text-sm sm:text-base md:text-lg font-semibold`}>
                                             Tier 3
@@ -194,7 +194,7 @@ const Landing = () => {
                                     </div>
                                     {/* Card Body with content */}
                                     <div className="flex flex-col p-4 sm:p-5 md:p-6">
-                                        <h3 className="text-center mb-3 sm:mb-4 text-base sm:text-lg md:text-xl font-bold line-clamp-2">{'DeFi Master'}</h3>
+                                        <h2 className="text-center mb-2 sm:mb-3 text-12 sm:text-16 md:text-20 font-bold line-clamp-2">{'DeFi Master'}</h2>
                                         <div className="py-4 pt-0 mt-auto">
                                             <button className="bg-gray cursor-not-allowed text-white text-[15px] px-4 py-2 rounded-md w-full">
                                                 Invite Only
@@ -231,14 +231,15 @@ const Landing = () => {
             </div>
 
             {/* Testimonials Section */}
-            <div className=" lg:mt-32 text-center bg-blue-50 py-8">
-                <h2 className="text-2xl sm:text-4xl md:text-4xl lg:text-36 font-bold my-6 text-gray-800">See what people are saying</h2>
-                <div className="container mx-auto px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 relative max-w-7xl">
+            <div className=" lg:mt-32 text-center bg-blue-50 md:py-8 py-4">
+                <h2 className="text-2xl sm:text-4xl md:text-4xl lg:text-36 font-bold md:my-6 text-gray-800">See what people are saying</h2>
+                <div className="container mx-auto px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 relative max-w-7xl sm:mt-4  lg:mt-0">
                     <Swiper
                         modules={[Navigation]}
                         spaceBetween={24}
                         slidesPerView={3}
                         slidesPerGroup={1}
+                        loop={true}
                         navigation={{
                             nextEl: '.swiper-button-next-custom',
                             prevEl: '.swiper-button-prev-custom',
@@ -272,28 +273,31 @@ const Landing = () => {
                     {/* Custom Navigation Buttons */}
                     <button 
                         type="button"
-                        className="swiper-button-prev-custom absolute left-0 top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors shadow-lg cursor-pointer"
+                        className="swiper-button-prev-custom absolute left-0 top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full bg-gray-200 hover:bg-blue-600 flex items-center justify-center transition-all duration-300 shadow-lg hover:shadow-xl cursor-pointer transform hover:scale-110 active:scale-95 border border-black"
                         aria-label="Previous testimonial"
                     >
-                        <FontAwesomeIcon icon={faChevronLeft} className="text-blue-600 text-lg" />
+                        <FontAwesomeIcon icon={faChevronLeft} className="text-blue-600 text-lg transition-colors duration-300 hover:text-white" />
                     </button>
                     <button 
                         type="button"
-                        className="swiper-button-next-custom absolute right-0 top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors shadow-lg cursor-pointer"
+                        className="swiper-button-next-custom absolute right-0 top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full bg-gray-200 hover:bg-blue-600 flex items-center justify-center transition-all duration-300 shadow-lg hover:shadow-xl cursor-pointer transform hover:scale-110 active:scale-95 border border-black"
                         aria-label="Next testimonial"
                     >
-                        <FontAwesomeIcon icon={faChevronRight} className="text-blue-600 text-lg" />
+                        <FontAwesomeIcon icon={faChevronRight} className="text-blue-600 text-lg transition-colors duration-300 hover:text-white" />
                     </button>
                 </div>
             </div>
 
             {/* FAQ Section */}
-            <div className="w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 text-center bg-gradient-to-b from-white to-blue-50">
-                <div className="max-w-6xl mx-auto w-full">
-                    <h2 className="text-2xl sm:text-4xl md:text-4xl lg:text-36  font-bold mb-3 sm:mb-4 text-gray-900">
+                    <div className="text-center pb-8">
+
+                    <h2 className="text-2xl sm:text-4xl md:text-4xl lg:text-36  font-bold  text-gray-900">
                         Frequently Asked Questions
                     </h2>
-                    <p className="text-gray-600 text-base sm:text-lg mb-8 sm:mb-10 md:mb-12">Find answers to common questions about our courses</p>
+                    <p className="text-gray-600 text-base sm:text-lg">Find answers to common questions about our courses</p>
+                    </div>
+            <div className="w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 text-center bg-gradient-to-b from-white to-blue-50">
+                <div className="max-w-6xl mx-auto w-full">
                     {faqs.map((section, sectionIndex) => (
                         <div key={sectionIndex} className="mb-6 sm:mb-8 md:mb-10 lg:mb-12">
                             {/* Section Title */}

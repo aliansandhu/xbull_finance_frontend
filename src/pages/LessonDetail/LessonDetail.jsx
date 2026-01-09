@@ -6,7 +6,7 @@ import { pauseVideo } from "../../apis/Module/pauseVideo";
 import { getVideoProgress } from "../../apis/Module/getVideoProgress";
 import { useNavigate, useParams } from "react-router-dom";
 import XLogo from "../../assets/images/x_logo.png";
-import { patchModuleProgress } from "../../apis/Module/moduleProgress";
+import { patchModuleProgress, getModuleProgress } from "../../apis/Module/moduleProgress";
 import NextLessonCard from "../../components/NextLessonCard/NextLessonCard";
 import { useAppContext } from "../../helpers/Context/AppContext";
 import { getKey } from "../../helpers/getKey";
@@ -71,33 +71,68 @@ const LessonDetail = () => {
             setLectures(res.data.videos);
 
             let completedLessons = [];
+            let selectedLessonFromURL = res.data.videos.find(lesson => lesson.id === parseInt(params.lessonId));
+            setSelectedLesson(selectedLessonFromURL);
 
-            const checkLessons = res.data.videos.map(async (lesson) => {
-                if (isLoggedIn) {
-                    // If logged in, check API only
-                    const progress = await fetchVideoProgress(lesson.id);
-                    if (progress?.completed) {
-                        completedLessons.push(lesson.id);
+            if (isLoggedIn) {
+                // If logged in, fetch module progress from API to get all video completion statuses
+                getModuleProgress(params.moduleId).then((moduleProgressRes) => {
+                    if (moduleProgressRes?.data?.videos && Array.isArray(moduleProgressRes.data.videos)) {
+                        moduleProgressRes.data.videos.forEach((video) => {
+                            if (video.completed && video.video_id) {
+                                completedLessons.push(video.video_id);
+                            }
+                        });
                     }
-                } else {
-                    // If not logged in, check localStorage only
+                    
+                    if (array.length === 0) {
+                        array = Array.from(completedLessons);
+                        setCompletedVideos(array);
+
+                        let lessonToFetchProgressFor;
+                        if (selectedLessonFromURL) {
+                            lessonToFetchProgressFor = selectedLessonFromURL.id;
+                        } else {
+                            let firstIncompleteLesson = res.data.videos.find(lesson => !completedLessons.includes(lesson.id));
+                            lessonToFetchProgressFor = firstIncompleteLesson ? firstIncompleteLesson.id : res.data.videos[0].id;
+                            setSelectedLesson(firstIncompleteLesson || res.data.videos[0]);
+                        }
+
+                        fetchVideoProgress(lessonToFetchProgressFor);
+                    }
+                }).catch((error) => {
+                    console.error('Error fetching module progress:', error);
+                    // Fallback to individual video checks
+                    const checkLessons = res.data.videos.map(async (lesson) => {
+                        const progress = await fetchVideoProgress(lesson.id);
+                        if (progress?.completed) {
+                            completedLessons.push(lesson.id);
+                        }
+                    });
+                    Promise.all(checkLessons).then(() => {
+                        if (array.length === 0) {
+                            array = Array.from(completedLessons);
+                            setCompletedVideos(array);
+                            let lessonToFetchProgressFor = selectedLessonFromURL ? selectedLessonFromURL.id : res.data.videos[0].id;
+                            fetchVideoProgress(lessonToFetchProgressFor);
+                        }
+                    });
+                });
+            } else {
+                // If not logged in, check localStorage only
+                res.data.videos.forEach((lesson) => {
                     if (isVideoCompletedInCache(lesson.id)) {
                         if (!completedLessons.includes(lesson.id)) {
                             completedLessons.push(lesson.id);
                         }
                     }
-                }
-            });
+                });
 
-            let selectedLessonFromURL = res.data.videos.find(lesson => lesson.id === parseInt(params.lessonId));
-            setSelectedLesson(selectedLessonFromURL);
-            Promise.all(checkLessons).then(() => {
                 if (array.length === 0) {
-                    array = Array.from(completedLessons)
+                    array = Array.from(completedLessons);
                     setCompletedVideos(array);
 
                     let lessonToFetchProgressFor;
-
                     if (selectedLessonFromURL) {
                         lessonToFetchProgressFor = selectedLessonFromURL.id;
                     } else {
@@ -108,7 +143,7 @@ const LessonDetail = () => {
 
                     fetchVideoProgress(lessonToFetchProgressFor);
                 }
-            });
+            }
         }).catch((e) => {
             setLoading(false)
         }).finally(() => {
@@ -350,6 +385,11 @@ const LessonDetail = () => {
     // }, []);
 
     const allCompleted = completedVideos.length === lectures.length
+    // Check if current video is the last video in the module
+    const isLastVideo = selectedLesson && lectures.length > 0 && 
+        selectedLesson.id === lectures[lectures.length - 1].id;
+    // Only show exam card if: video ended, it's the last video, all videos completed, and quiz not passed
+    const shouldShowExamCard = videoEnded && isLastVideo && allCompleted && !value?.quizPassed;
 
     if (loading) {
         return (
@@ -397,7 +437,7 @@ const LessonDetail = () => {
                                 className="cursor-pointer flex items-center space-x-2 mb-6 group hover:text-blue-600 transition-colors"
                             >
                                 <FaArrowLeft className="text-sm group-hover:-translate-x-1 transition-transform" />
-                                <span className="text-sm font-medium text-gray-700 group-hover:text-blue-600">Back to Tier Selection</span>
+                                <span className="text-sm font-medium text-gray-700 group-hover:text-blue-600">Back to Module Selection</span>
                             </div>
                             
                             <div className="mb-4">
@@ -474,7 +514,7 @@ const LessonDetail = () => {
                                 className="cursor-pointer flex items-center space-x-2 mb-4 group"
                             >
                                 <FaArrowLeft className="text-sm group-hover:-translate-x-1 transition-transform" />
-                                <span className="text-sm font-medium text-gray-700">Back to Tier Selection</span>
+                                <span className="text-sm font-medium text-gray-700">Back to Module Selection</span>
                             </div>
                             <div className="mb-3">
                                 <h3 className="text-xs font-bold px-3 py-1.5 w-fit text-white rounded-md bg-gradient-to-r from-blue-600 to-blue-700 shadow-sm">
@@ -489,7 +529,7 @@ const LessonDetail = () => {
                         </h2>
                         
                         <div className="mt-4 bg-black rounded-xl relative overflow-hidden shadow-2xl">
-                            {allCompleted && !value?.quizPassed ? (
+                            {shouldShowExamCard ? (
                                 <div className="flex items-center justify-center w-full min-h-[300px] sm:min-h-[400px] lg:min-h-[500px] bg-[#f5f9ff] rounded-xl flex-col p-4">
                                     <CompletionCard moduleCount={parseInt(moduleIndex) + 1} videoProgress={videoProgress} />
                                 </div>
@@ -498,9 +538,7 @@ const LessonDetail = () => {
                                     {nextLesson ? (
                                         <NextLessonCard handleLessonClick={() => handleLessonClick(nextLesson)}
                                             setVideoEnded={setVideoEnded} />
-                                    ) : (
-                                        <CompletionCard moduleCount={parseInt(moduleIndex) + 1} videoProgress={videoProgress} />
-                                    )}
+                                    ) : null}
                                 </div>
                             ) : (
                                 <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
